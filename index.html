@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кто хочет стать миллионером?</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #0B0C1E, #1A1F3A);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        .game-container {
+            width: 100%;
+            max-width: 1200px;
+            padding: 20px;
+        }
+        
+        /* Главный экран */
+        .screen {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .main-screen {
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 48px;
+            color: #FFD700;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+        
+        h2 {
+            color: #FFD700;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            padding: 15px 40px;
+            font-size: 18px;
+            margin: 10px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.3s;
+        }
+        
+        button:hover {
+            transform: scale(1.05);
+        }
+        
+        .btn-start {
+            background: #00C851;
+            color: white;
+        }
+        
+        .btn-login {
+            background: #aa66cc;
+            color: white;
+        }
+        
+        .btn-admin {
+            background: #33b5e5;
+            color: white;
+        }
+        
+        .btn-back {
+            background: #666;
+            color: white;
+        }
+        
+        /* Формы */
+        .form-container {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #FFD700;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 16px;
+        }
+        
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        /* Игровой экран */
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 215, 0, 0.1);
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #FFD700;
+        }
+        
+        .player-name {
+            font-size: 24px;
+            color: #FFD700;
+            font-weight: bold;
+        }
+        
+        .player-stats {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .question-box {
+            background: linear-gradient(135deg, #1E2A5A, #0F1A4A);
+            border-radius: 20px;
+            padding: 30px;
+            margin-right: 270px;
+            border: 2px solid #FFD700;
+        }
+        
+        .question-text {
+            font-size: 24px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .answers-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .answer-btn {
+            background: linear-gradient(135deg, #2A3F7A, #1A2A5A);
+            border: 2px solid #4A5A9A;
+            color: white;
+            padding: 20px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: left;
+        }
+        
+        .answer-btn:hover:not(:disabled) {
+            border-color: #FFD700;
+        }
+        
+        .answer-btn.correct {
+            background: #00C851;
+            border-color: #FFD700;
+        }
+        
+        .answer-btn.wrong {
+            background: #ff4444;
+            border-color: #ff4444;
+        }
+        
+        .answer-letter {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: #FFD700;
+            color: #0B0C1E;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        /* Призовая лестница */
+        .prize-ladder {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 250px;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #FFD700;
+        }
+        
+        .prize-item {
+            padding: 8px;
+            text-align: right;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+        }
+        
+        .prize-item.current {
+            background: #FFD700;
+            color: #0B0C1E;
+            font-weight: bold;
+        }
+        
+        .prize-item.reached {
+            color: #00C851;
+        }
+        
+        /* Админ панель */
+        .admin-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .tab-btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .tab-btn.active {
+            background: #FFD700;
+            color: #0B0C1E;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .answers-admin {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .answer-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .answer-input input[type="radio"] {
+            width: auto;
+        }
+        
+        .question-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .delete-btn {
+            background: #ff4444;
+            padding: 5px 15px;
+            margin: 0;
+        }
+        
+        /* Таблица результатов */
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .results-table th {
+            background: #FFD700;
+            color: #0B0C1E;
+            padding: 10px;
+            text-align: left;
+        }
+        
+        .results-table td {
+            padding: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .results-table tr:hover {
+            background: rgba(255, 215, 0, 0.1);
+        }
+        
+        /* Карточки игроков */
+        .player-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .player-actions button {
+            padding: 5px 10px;
+            margin: 0 5px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .error {
+            color: #ff4444;
+            margin-top: 10px;
+        }
+        
+        .success {
+            color: #00C851;
+            margin-top: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .prize-ladder {
+                position: static;
+                width: 100%;
+                margin-top: 20px;
+                transform: none;
+            }
+            
+            .question-box {
+                margin-right: 0;
+            }
+            
+            .answers-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .answers-admin {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- Главный экран -->
+        <div id="mainScreen" class="screen main-screen">
+            <h1>КТО ХОЧЕТ СТАТЬ МИЛЛИОНЕРОМ?</h1>
+            
+            <div id="mainMenu">
+                <button class="btn-start" onclick="showScreen('gamePreparation')">Начать игру</button>
+                <button class="btn-login" onclick="showScreen('playerLogin')">Вход для игроков</button>
+                <button class="btn-admin" onclick="showScreen('adminLogin')">Админ панель</button>
+            </div>
+            
+            <!-- Форма входа игрока -->
+            <div id="playerLoginScreen" class="form-container hidden">
+                <h2>Вход в игру</h2>
+                <div class="form-group">
+                    <label>Логин:</label>
+                    <input type="text" id="loginUsername" placeholder="Введите логин">
+                </div>
+                <div class="form-group">
+                    <label>Пароль:</label>
+                    <input type="password" id="loginPassword" placeholder="Введите пароль">
+                </div>
+                <button class="btn-start" onclick="loginPlayer()">Войти</button>
+                <button class="btn-login" onclick="showScreen('playerRegister')">Регистрация</button>
+                <button class="btn-back" onclick="showScreen('main')">Назад</button>
+                <div id="loginError" class="error"></div>
+            </div>
+            
+            <!-- Форма регистрации -->
+            <div id="registerScreen" class="form-container hidden">
+                <h2>Регистрация</h2>
+                <div class="form-group">
+                    <label>Логин:</label>
+                    <input type="text" id="regLogin" placeholder="Придумайте логин">
+                </div>
+                <div class="form-group">
+                    <label>Пароль:</label>
+                    <input type="password" id="regPassword" placeholder="Придумайте пароль">
+                </div>
+                <div class="form-group">
+                    <label>Имя:</label>
+                    <input type="text" id="regName" placeholder="Ваше имя">
+                </div>
+                <button class="btn-start" onclick="registerPlayer()">Зарегистрироваться</button>
+                <button class="btn-back" onclick="showScreen('playerLogin')">Назад</button>
+                <div id="registerError" class="error"></div>
+            </div>
+            
+            <!-- Выбор игрока -->
+            <div id="playerSelectScreen" class="form-container hidden">
+                <h2>Выберите игрока</h2>
+                <div class="form-group">
+                    <select id="playerSelect">
+                        <option value="">-- Выберите игрока --</option>
+                    </select>
+                </div>
+                <button class="btn-start" onclick="selectPlayer()">Играть</button>
+                <button class="btn-back" onclick="showScreen('main')">Назад</button>
+            </div>
+            
+            <!-- Вход в админку -->
+            <div id="adminLoginScreen" class="form-container hidden">
+                <h2>Вход для администратора</h2>
+                <div class="form-group">
+                    <label>Пароль:</label>
+                    <input type="password" id="adminPassword" placeholder="Введите пароль">
+                </div>
+                <button class="btn-admin" onclick="checkAdminPassword()">Войти</button>
+                <button class="btn-back" onclick="showScreen('main')">Назад</button>
+                <div id="adminError" class="error"></div>
+            </div>
+        </div>
+        
+        <!-- Игровой экран -->
+        <div id="gameScreen" class="hidden">
+            <div class="game-header">
+                <span class="player-name" id="currentPlayerName"></span>
+                <div class="player-stats">
+                    <span>Игр: <span id="playerGames">0</span></span>
+                    <span>Лучший: <span id="playerBest">0</span> ₽</span>
+                </div>
+            </div>
+            
+            <div class="question-box">
+                <div id="questionNumber" style="color: #FFD700;">Вопрос 1 из 15</div>
+                <div class="question-text" id="questionText"></div>
+                <div class="answers-grid" id="answersContainer"></div>
+            </div>
+            
+            <div class="prize-ladder" id="prizeLadder"></div>
+            
+            <button class="btn-back" onclick="backToMenu()" style="margin-top: 20px;">Выйти в меню</button>
+        </div>
+        
+        <!-- Админ панель -->
+        <div id="adminPanel" class="screen hidden">
+            <div class="admin-tabs">
+                <button class="tab-btn active" onclick="switchTab('questions')">Вопросы</button>
+                <button class="tab-btn" onclick="switchTab('results')">Результаты</button>
+                <button class="tab-btn" onclick="switchTab('players')">Игроки</button>
+                <button class="tab-btn btn-back" onclick="backToMenu()">Выход</button>
+            </div>
+            
+            <!-- Вкладка с вопросами -->
+            <div id="questionsTab" class="tab-content active">
+                <h2>Управление вопросами</h2>
+                <form id="questionForm">
+                    <div class="form-group">
+                        <label>Вопрос:</label>
+                        <input type="text" id="questionInput" required>
+                    </div>
+                    
+                    <div class="answers-admin">
+                        <div class="answer-input">
+                            <input type="radio" name="correctAnswer" value="0" checked>
+                            <input type="text" id="answerA" placeholder="Ответ А" required>
+                        </div>
+                        <div class="answer-input">
+                            <input type="radio" name="correctAnswer" value="1">
+                            <input type="text" id="answerB" placeholder="Ответ Б" required>
+                        </div>
+                        <div class="answer-input">
+                            <input type="radio" name="correctAnswer" value="2">
+                            <input type="text" id="answerC" placeholder="Ответ В" required>
+                        </div>
+                        <div class="answer-input">
+                            <input type="radio" name="correctAnswer" value="3">
+                            <input type="text" id="answerD" placeholder="Ответ Г" required>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn-start">Сохранить вопрос</button>
+                </form>
+                
+                <div style="margin-top: 30px;">
+                    <h3>Список вопросов:</h3>
+                    <div id="questionsList"></div>
+                </div>
+            </div>
+            
+            <!-- Вкладка с результатами -->
+            <div id="resultsTab" class="tab-content">
+                <h2>Результаты игр</h2>
+                <div class="form-group">
+                    <input type="text" id="searchResults" placeholder="Поиск по имени игрока...">
+                </div>
+                <div id="resultsContainer"></div>
+            </div>
+            
+            <!-- Вкладка с игроками -->
+            <div id="playersTab" class="tab-content">
+                <h2>Управление игроками</h2>
+                <div id="playersList"></div>
+            </div>
+        </div>
+        
+        <!-- Экран результатов игры -->
+        <div id="gameResultScreen" class="screen hidden">
+            <h2>ИГРА ОКОНЧЕНА!</h2>
+            <div style="font-size: 48px; color: #FFD700; margin: 30px;" id="finalWinAmount"></div>
+            <div style="font-size: 24px; margin-bottom: 30px;" id="finalStats"></div>
+            <button class="btn-start" onclick="backToMenu()">В главное меню</button>
+        </div>
+    </div>
+    
+    <script src="game.js"></script>
+</body>
+</html>
