@@ -761,10 +761,11 @@ function startGame() {
 }
 
 // Показать игровой экран
+// Показать игровой экран
 function showGameScreen() {
     document.body.innerHTML = `
         <div class="game-container">
-            <div class="game-screen">
+            <div class="game-header">
                 <div class="player-info">
                     <span class="player-name">${currentPlayer ? currentPlayer.name : 'Гость'}</span>
                     <div class="player-stats">
@@ -772,30 +773,53 @@ function showGameScreen() {
                         <span>Лучший: <span id="playerBest">${currentPlayer ? currentPlayer.bestResult : 0}</span> ₽</span>
                     </div>
                 </div>
-                
-                <div class="question-section">
-                    <div class="question-number" id="questionNumber">Вопрос 1 из ${currentQuestions.length}</div>
-                    <div class="question-text" id="questionText"></div>
-                    <div class="answers-grid" id="answersContainer"></div>
+            </div>
+            
+            <div class="game-layout">
+                <div class="question-area">
+                    <div class="question-section">
+                        <div class="question-number" id="questionNumber">Вопрос 1 из ${currentQuestions.length}</div>
+                        <div class="question-text" id="questionText"></div>
+                        <div class="answers-grid" id="answersContainer"></div>
+                    </div>
                 </div>
                 
-                <div class="prize-ladder" id="prizeLadder"></div>
-                
-                <button onclick="showMainScreen()" class="btn-back">Выйти</button>
+                <div class="prize-area">
+                    <div class="prize-ladder" id="prizeLadder"></div>
+                </div>
+            </div>
+            
+            <div class="game-footer">
+                <button onclick="showMainScreen()" class="btn-back">Выйти в меню</button>
             </div>
         </div>
         
         <style>
-            .game-container {
-                width: 100%;
-                max-width: 1200px;
-                margin: 0 auto;
-                padding: 20px;
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
             }
             
-            .game-screen {
-                position: relative;
-                min-height: 600px;
+            body {
+                font-family: Arial, sans-serif;
+                background: linear-gradient(135deg, #0B0C1E, #1A1F3A);
+                min-height: 100vh;
+                color: white;
+            }
+            
+            .game-container {
+                max-width: 1400px;
+                margin: 0 auto;
+                padding: 20px;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+            
+            /* Шапка игры */
+            .game-header {
+                margin-bottom: 20px;
             }
             
             .player-info {
@@ -805,9 +829,8 @@ function showGameScreen() {
                 background: rgba(255, 215, 0, 0.1);
                 padding: 15px 25px;
                 border-radius: 10px;
-                margin-bottom: 20px;
                 border: 1px solid #FFD700;
-                color: white;
+                width: 100%;
             }
             
             .player-name {
@@ -821,26 +844,42 @@ function showGameScreen() {
                 gap: 20px;
             }
             
+            /* Основной лейаут */
+            .game-layout {
+                display: flex;
+                gap: 30px;
+                flex: 1;
+                margin-bottom: 20px;
+            }
+            
+            /* Область вопросов (слева) */
+            .question-area {
+                flex: 3;
+                min-width: 0; /* Для предотвращения переполнения */
+            }
+            
             .question-section {
                 background: linear-gradient(135deg, #1E2A5A, #0F1A4A);
                 border-radius: 20px;
                 padding: 30px;
-                margin-bottom: 30px;
                 border: 2px solid #FFD700;
                 box-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
-                color: white;
+                height: 100%;
             }
             
             .question-number {
+                text-align: center;
                 color: #FFD700;
                 font-size: 18px;
-                margin-bottom: 10px;
+                margin-bottom: 20px;
             }
             
             .question-text {
                 font-size: 28px;
                 text-align: center;
-                margin-bottom: 20px;
+                margin-bottom: 30px;
+                line-height: 1.4;
+                word-wrap: break-word;
             }
             
             .answers-grid {
@@ -859,19 +898,23 @@ function showGameScreen() {
                 cursor: pointer;
                 text-align: left;
                 transition: all 0.3s;
+                width: 100%;
+                word-wrap: break-word;
             }
             
-            .answer-btn:hover {
+            .answer-btn:hover:not(:disabled) {
                 border-color: #FFD700;
                 transform: scale(1.02);
             }
             
             .answer-btn.correct {
                 background: #00C851;
+                border-color: #FFD700;
             }
             
             .answer-btn.wrong {
                 background: #ff4444;
+                border-color: #ff4444;
             }
             
             .answer-letter {
@@ -883,47 +926,107 @@ function showGameScreen() {
                 border-radius: 50%;
                 text-align: center;
                 line-height: 30px;
+                font-weight: bold;
                 margin-right: 10px;
+                flex-shrink: 0;
+            }
+            
+            /* Область призов (справа) */
+            .prize-area {
+                flex: 1;
+                min-width: 250px;
             }
             
             .prize-ladder {
-                position: absolute;
-                right: 0;
-                top: 80px;
-                width: 250px;
                 background: rgba(0, 0, 0, 0.8);
-                border-radius: 10px;
+                border-radius: 15px;
                 padding: 20px;
                 border: 1px solid #FFD700;
-                color: white;
+                position: sticky;
+                top: 20px;
+                max-height: calc(100vh - 200px);
+                overflow-y: auto;
+            }
+            
+            .prize-ladder h3 {
+                color: #FFD700;
+                text-align: center;
+                margin-bottom: 15px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #FFD700;
             }
             
             .prize-item {
-                padding: 8px;
+                padding: 10px;
+                margin: 5px 0;
+                border-radius: 8px;
                 text-align: right;
-                border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+                transition: all 0.3s;
+                font-size: 16px;
             }
             
             .prize-item.current {
                 background: #FFD700;
                 color: #0B0C1E;
                 font-weight: bold;
+                transform: scale(1.02);
             }
             
             .prize-item.reached {
                 color: #00C851;
             }
             
+            /* Подвал */
+            .game-footer {
+                text-align: center;
+                margin-top: auto;
+            }
+            
             .btn-back {
                 background: #666;
                 color: white;
-                padding: 10px 20px;
+                padding: 10px 30px;
                 border: none;
                 border-radius: 5px;
                 cursor: pointer;
+                font-size: 16px;
+                transition: all 0.3s;
+            }
+            
+            .btn-back:hover {
+                background: #888;
+                transform: scale(1.05);
+            }
+            
+            /* Адаптивность для мобильных */
+            @media (max-width: 768px) {
+                .game-layout {
+                    flex-direction: column;
+                }
+                
+                .prize-area {
+                    order: -1;
+                    margin-bottom: 20px;
+                }
+                
+                .prize-ladder {
+                    position: static;
+                    max-height: 300px;
+                }
+                
+                .answers-grid {
+                    grid-template-columns: 1fr;
+                }
+                
+                .question-text {
+                    font-size: 22px;
+                }
             }
         </style>
     `;
+    
+    showQuestion();
+}
     
     showQuestion();
 }
@@ -1091,3 +1194,4 @@ window.onload = function() {
     loadData();
     showMainScreen();
 };
+
