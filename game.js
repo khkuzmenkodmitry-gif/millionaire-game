@@ -1,7 +1,7 @@
 // ==============================================
-// КОНФИГУРАЦИЯ JSONBIN.IO - ЗАМЕНИТЕ НА СВОИ ДАННЫЕ!
+// КОНФИГУРАЦИЯ JSONBIN.IO - ПРОВЕРЬТЕ ЭТИ ДАННЫЕ!
 // ==============================================
-const BIN_ID = '69aa7ad5d0ea881f40f44c04'; // Ваш Bin ID (я взял из вашего сообщения)
+const BIN_ID = '69aa7ad5d0ea881f40f44c04'; // Ваш Bin ID
 const API_KEY = '$2a$10$Lrd9qr2zVXIhC0chIlbqi.pLXyeZrKVYEiNBkRIFb1pyweXfKz2cS'; // Ваш API ключ
 
 // Глобальные переменные
@@ -15,7 +15,7 @@ let currentPrizeIndex = -1;
 let gameHistory = [];
 
 // ==============================================
-// ЗАГРУЗКА И СОХРАНЕНИЕ ВОПРОСОВ В ОБЛАКО
+// ЗАГРУЗКА И СОХРАНЕНИЕ ВОПРОСОВ В ОБЛАКО (JSONBin.io)
 // ==============================================
 
 // Загрузка вопросов из JSONBin.io
@@ -25,21 +25,33 @@ async function loadQuestions() {
         const loadingDiv = document.createElement('div');
         loadingDiv.id = 'loadingIndicator';
         loadingDiv.style.cssText = 'position:fixed; top:10px; right:10px; background:#FFD700; color:black; padding:10px; border-radius:5px; z-index:9999;';
-        loadingDiv.textContent = '⏳ Загрузка вопросов...';
+        loadingDiv.textContent = '⏳ Загрузка вопросов из облака...';
         document.body.appendChild(loadingDiv);
         
+        console.log('Загружаем вопросы из JSONBin.io...');
+        console.log('BIN_ID:', BIN_ID);
+        
+        // Проверяем, что ключи не пустые
+        if (!BIN_ID || BIN_ID === 'ваш_bin_id' || !API_KEY || API_KEY === 'ваш_api_key') {
+            throw new Error('Не настроены ключи JSONBin.io! Замените BIN_ID и API_KEY в начале файла.');
+        }
+        
+        // Загружаем из JSONBin.io
         const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+            method: 'GET',
             headers: {
                 'X-Master-Key': API_KEY,
-                'X-Bin-Meta': false
+                'X-Bin-Meta': false,
+                'Content-Type': 'application/json'
             }
         });
         
         if (!response.ok) {
-            throw new Error(`Ошибка HTTP: ${response.status}`);
+            throw new Error(`Ошибка HTTP: ${response.status} - ${response.statusText}`);
         }
         
         const data = await response.json();
+        console.log('Получены данные из JSONBin.io:', data);
         
         // Проверяем структуру данных
         if (data && data.questions && Array.isArray(data.questions)) {
@@ -57,22 +69,31 @@ async function loadQuestions() {
         // Сохраняем локально как резервную копию
         localStorage.setItem('millionaireQuestions', JSON.stringify(questions));
         
+        // Убираем индикатор загрузки
+        const loadingEl = document.getElementById('loadingIndicator');
+        if (loadingEl) loadingEl.remove();
+        
+        // Показываем успешное уведомление
+        showNotification(`✅ Загружено ${questions.length} вопросов`, 'success');
+        
     } catch (error) {
         console.error('❌ Ошибка загрузки из облака:', error);
+        
+        // Убираем индикатор загрузки
+        const loadingEl = document.getElementById('loadingIndicator');
+        if (loadingEl) loadingEl.remove();
         
         // Пробуем загрузить из localStorage
         const localQuestions = localStorage.getItem('millionaireQuestions');
         if (localQuestions) {
             questions = JSON.parse(localQuestions);
-            alert('⚠️ Не удалось загрузить из облака. Используются локальные вопросы.');
+            showNotification('⚠️ Загружены локальные вопросы (облако недоступно)', 'error');
+            console.log('Загружены локальные вопросы:', questions.length);
         } else {
             questions = getDemoQuestions();
-            alert('⚠️ Не удалось загрузить вопросы. Используются демо-вопросы.');
+            showNotification('⚠️ Используются демо-вопросы', 'error');
+            console.log('Используются демо-вопросы');
         }
-    } finally {
-        // Убираем индикатор загрузки
-        const loadingDiv = document.getElementById('loadingIndicator');
-        if (loadingDiv) loadingDiv.remove();
     }
 }
 
@@ -82,28 +103,31 @@ async function saveQuestions(showAlert = true) {
         // Сначала сохраняем локально
         localStorage.setItem('millionaireQuestions', JSON.stringify(questions));
         
-        // Сохраняем в облако
+        // Сохраняем в облако JSONBin.io
         const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Master-Key': API_KEY
+                'X-Master-Key': API_KEY,
+                'X-Bin-Meta': false
             },
             body: JSON.stringify({ questions: questions })
         });
         
-        if (response.ok) {
-            console.log('✅ Вопросы сохранены в облако');
-            if (showAlert) {
-                showNotification('✅ Вопросы сохранены в облако!', 'success');
-            }
-        } else {
+        if (!response.ok) {
             throw new Error(`Ошибка HTTP: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ Вопросы сохранены в облако:', result);
+        
+        if (showAlert) {
+            showNotification('✅ Вопросы сохранены в облако!', 'success');
         }
     } catch (error) {
         console.error('❌ Ошибка сохранения в облако:', error);
         if (showAlert) {
-            showNotification('⚠️ Вопросы сохранены локально, но не в облако!', 'error');
+            showNotification('⚠️ Вопросы сохранены локально (облако недоступно)', 'error');
         }
     }
 }
@@ -131,7 +155,12 @@ function getDemoQuestions() {
 
 // Показать уведомление
 function showNotification(message, type) {
+    // Удаляем предыдущее уведомление если есть
+    const oldNote = document.getElementById('notification');
+    if (oldNote) oldNote.remove();
+    
     const notification = document.createElement('div');
+    notification.id = 'notification';
     notification.style.cssText = `
         position: fixed;
         top: 20px;
@@ -142,14 +171,15 @@ function showNotification(message, type) {
         border-radius: 5px;
         font-weight: bold;
         z-index: 10000;
-        animation: slideIn 0.5s;
+        animation: slideIn 0.3s;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     `;
     notification.textContent = message;
     document.body.appendChild(notification);
     
     setTimeout(() => {
-        notification.style.animation = 'slideOut 0.5s';
-        setTimeout(() => notification.remove(), 500);
+        notification.style.animation = 'slideOut 0.3s';
+        setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
 
@@ -757,7 +787,7 @@ window.onload = async function() {
     `;
     document.head.appendChild(style);
     
-    // Загружаем вопросы из облака
+    // Загружаем вопросы из облака JSONBin.io
     await loadQuestions();
     
     // Загружаем игроков и результаты из localStorage
