@@ -1,145 +1,81 @@
 // ==============================================
-// ДИАГНОСТИЧЕСКАЯ ВЕРСИЯ
+// ВЕРСИЯ С GITHUB GIST (РАБОТАЕТ ЧЕРЕЗ VPN)
 // ==============================================
 
-const BIN_ID = '69aa7ad5d0ea881f40f44c04';
-const MASTER_KEY = '$2a$10$BP88/0Ulf2/XGtkZei0AQuQ6v62DyLwiCUgHXKnzsSJYBkfTSLSUa';
+// ⚠️ ЗАМЕНИТЕ НА СВОЙ URL ИЗ ШАГА 2!
+const GIST_URL = 'https://gist.githubusercontent.com/khkuzmenkodmitry-gif/768233eec608b32bcf9a52a7e22a3f85/raw/questions.json
+';
 
 let questions = [];
 
-// ЗАГРУЗКА С ДИАГНОСТИКОЙ
+// Загрузка вопросов из GitHub Gist
 async function loadQuestions() {
     try {
-        console.log('1. Начинаем загрузку...');
-        console.log('2. BIN_ID:', BIN_ID);
-        console.log('3. MASTER_KEY (первые 10 символов):', MASTER_KEY.substring(0, 10) + '...');
+        console.log('Загружаем вопросы из GitHub Gist...');
         
-        // Показываем сообщение о загрузке
-        document.body.innerHTML = `
-            <div style="text-align:center; padding:50px; background:#0B0C1E; color:white; font-family:Arial;">
-                <h2 style="color:#FFD700;">⏳ Загрузка вопросов...</h2>
-                <p>Проверяем соединение с JSONBin.io...</p>
-                <p style="color:#aaa; font-size:12px;">BIN: ${BIN_ID}</p>
-            </div>
-        `;
-        
-        const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-            headers: { 'X-Master-Key': MASTER_KEY }
-        });
-        
-        console.log('4. Статус ответа:', response.status);
-        console.log('5. Статус текстом:', response.statusText);
+        // Добавляем параметр для избежания кэширования
+        const response = await fetch(`${GIST_URL}?t=${Date.now()}`);
         
         if (!response.ok) {
-            throw new Error(`HTTP ошибка: ${response.status}`);
+            throw new Error(`Ошибка HTTP: ${response.status}`);
         }
         
-        const data = await response.json();
-        console.log('6. Получены данные:', data);
+        questions = await response.json();
         
-        // Проверяем структуру данных
-        if (data && data.questions && Array.isArray(data.questions)) {
-            questions = data.questions;
-            console.log('7. Найдены вопросы в data.questions:', questions.length);
-        } else if (Array.isArray(data)) {
-            questions = data;
-            console.log('7. Найден массив вопросов:', questions.length);
-        } else {
-            console.log('7. Непонятная структура данных:', data);
-            questions = [];
+        // Проверяем, что загрузился массив
+        if (!Array.isArray(questions)) {
+            throw new Error('Неверный формат данных');
         }
         
-        console.log('8. Итоговое количество вопросов:', questions.length);
-        
-        // Показываем результат
-        if (questions.length > 0) {
-            showMenu();
-        } else {
-            // Если вопросов нет, показываем сообщение
-            document.body.innerHTML = `
-                <div style="text-align:center; padding:50px; background:#0B0C1E; color:white; font-family:Arial;">
-                    <h2 style="color:#FFD700;">⚠️ Нет вопросов</h2>
-                    <p>В вашем JSONBin.io бине нет вопросов.</p>
-                    <p>Зайдите в <a href="https://jsonbin.io/app/dashboard" target="_blank" style="color:#FFD700;">JSONBin.io</a> и добавьте вопросы в формате:</p>
-                    <pre style="background:#333; padding:20px; text-align:left; margin:20px;">
-{
-  "questions": [
-    {
-      "question": "Столица России?",
-      "answers": ["Москва", "Питер", "Новгород", "Казань"],
-      "correct": 0
-    }
-  ]
-}
-                    </pre>
-                    <button onclick="useDemoQuestions()" style="padding:15px 30px; background:#00C851; color:white; border:none; border-radius:5px; margin:10px; cursor:pointer;">
-                        🔧 Использовать демо-вопросы
-                    </button>
-                    <button onclick="location.reload()" style="padding:15px 30px; background:#33b5e5; color:white; border:none; border-radius:5px; cursor:pointer;">
-                        🔄 Попробовать снова
-                    </button>
-                </div>
-            `;
-        }
+        console.log(`✅ Загружено ${questions.length} вопросов`);
+        showMenu();
         
     } catch (error) {
-        console.error('❌ Ошибка:', error);
+        console.error('❌ Ошибка загрузки:', error);
         
-        document.body.innerHTML = `
-            <div style="text-align:center; padding:50px; background:#0B0C1E; color:white; font-family:Arial;">
-                <h2 style="color:#ff4444;">❌ Ошибка загрузки</h2>
-                <p style="color:#ff8888;">${error.message}</p>
-                <p>Проверьте:</p>
-                <ul style="list-style:none; padding:0;">
-                    <li>✓ Правильный ли BIN_ID?</li>
-                    <li>✓ Правильный ли MASTER_KEY?</li>
-                    <li>✓ Есть ли интернет?</li>
-                </ul>
-                <button onclick="useDemoQuestions()" style="padding:15px 30px; background:#00C851; color:white; border:none; border-radius:5px; margin:10px; cursor:pointer;">
-                    🔧 Использовать демо-вопросы
-                </button>
-                <button onclick="location.reload()" style="padding:15px 30px; background:#33b5e5; color:white; border:none; border-radius:5px; cursor:pointer;">
-                    🔄 Попробовать снова
-                </button>
-            </div>
-        `;
+        // Если не загрузилось, показываем демо-вопросы
+        questions = getDemoQuestions();
+        alert('⚠️ Не удалось загрузить вопросы. Используются демо-вопросы.');
+        showMenu();
     }
 }
 
-// Использовать демо-вопросы
-window.useDemoQuestions = function() {
-    questions = [
+// Демо-вопросы на всякий случай
+function getDemoQuestions() {
+    return [
         {
-            question: 'Столица России?',
-            answers: ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Казань'],
+            question: "Столица России?",
+            answers: ["Москва", "Питер", "Новгород", "Казань"],
             correct: 0
         },
         {
-            question: 'Сколько планет в Солнечной системе?',
-            answers: ['7', '8', '9', '10'],
+            question: "Сколько планет в Солнечной системе?",
+            answers: ["7", "8", "9", "10"],
             correct: 1
         },
         {
-            question: 'Какой язык программирования используется для веб-страниц?',
-            answers: ['Python', 'Java', 'JavaScript', 'C++'],
+            question: "Какой язык программирования используется для веб-страниц?",
+            answers: ["Python", "Java", "JavaScript", "C++"],
             correct: 2
-        },
-        {
-            question: 'Кто написал "Войну и мир"?',
-            answers: ['Достоевский', 'Толстой', 'Чехов', 'Пушкин'],
-            correct: 1
-        },
-        {
-            question: 'Какая самая высокая гора в мире?',
-            answers: ['К2', 'Эверест', 'Канченджанга', 'Лхоцзе'],
-            correct: 1
         }
     ];
-    alert(`✅ Загружено ${questions.length} демо-вопросов!`);
-    showMenu();
 }
 
-// ПОКАЗ МЕНЮ
+// Сохранение в локальное хранилище (для админки)
+async function saveQuestions() {
+    try {
+        localStorage.setItem('millionaireQuestions', JSON.stringify(questions));
+        alert('✅ Вопросы сохранены локально!');
+        
+        // Примечание: GitHub Gist только для чтения
+        alert('📝 Для постоянного сохранения обновите файл в Gist вручную');
+        
+    } catch (error) {
+        alert('❌ Ошибка сохранения');
+    }
+}
+
+// ПОКАЗ ГЛАВНОГО МЕНЮ
 function showMenu() {
     document.body.innerHTML = `
         <div style="text-align:center; padding:50px; background:linear-gradient(135deg, #0B0C1E, #1A1F3A); min-height:100vh; color:white; font-family:Arial;">
@@ -147,23 +83,18 @@ function showMenu() {
             
             <div style="background:rgba(255,215,0,0.1); padding:20px; border-radius:10px; margin:20px auto; max-width:400px;">
                 <p style="font-size:18px;">📚 Загружено вопросов: <strong style="color:#FFD700; font-size:24px;">${questions.length}</strong></p>
+                <p style="color:#aaa; font-size:12px;">Источник: GitHub Gist</p>
             </div>
             
             <div style="margin:30px 0;">
                 <button onclick="startGame()" style="padding:15px 40px; font-size:20px; background:#00C851; color:white; border:none; border-radius:10px; margin:10px; cursor:pointer; font-weight:bold;">
-                    ▶️ НАЧАТЬ ИГРУ (${questions.length} вопросов)
+                    ▶️ НАЧАТЬ ИГРУ
                 </button>
                 
                 <button onclick="showAdmin()" style="padding:15px 40px; font-size:20px; background:#33b5e5; color:white; border:none; border-radius:10px; margin:10px; cursor:pointer; font-weight:bold;">
                     🔧 АДМИН ПАНЕЛЬ
                 </button>
             </div>
-            
-            ${questions.length === 0 ? `
-                <div style="background:#ff4444; padding:15px; border-radius:5px; max-width:400px; margin:20px auto;">
-                    ⚠️ Нет вопросов! Зайдите в админ-панель и добавьте вопросы.
-                </div>
-            ` : ''}
         </div>
     `;
 }
@@ -203,8 +134,18 @@ function showAdmin() {
                 </button>
             </div>
             
+            <div style="background:rgba(255,215,0,0.1); padding:15px; border-radius:5px; margin:20px 0;">
+                <p style="color:#FFD700;">⚠️ Важно:</p>
+                <p>Изменения сохраняются только локально. Чтобы сделать их постоянными:</p>
+                <ol style="text-align:left;">
+                    <li>Зайдите на <a href="https://gist.github.com" target="_blank" style="color:#FFD700;">Gist</a></li>
+                    <li>Откройте ваш файл questions.json</li>
+                    <li>Нажмите "Edit" и обновите вопросы вручную</li>
+                </ol>
+            </div>
+            
             <h3 style="color:#FFD700;">📋 ВСЕ ВОПРОСЫ (${questions.length})</h3>
-            <div id="questionsList" style="max-height:400px; overflow-y:auto;">
+            <div style="max-height:400px; overflow-y:auto;">
     `;
     
     questions.forEach((q, i) => {
@@ -227,10 +168,9 @@ function showAdmin() {
     
     adminHtml += `
             </div>
-            
             <div style="margin-top:20px; text-align:center;">
-                <button onclick="saveToCloud()" style="background:#FFD700; color:black; padding:15px 30px; border:none; border-radius:5px; margin:5px; cursor:pointer; font-weight:bold;">
-                    💾 СОХРАНИТЬ В ОБЛАКО
+                <button onclick="saveQuestions()" style="background:#FFD700; color:black; padding:15px 30px; border:none; border-radius:5px; margin:5px; cursor:pointer; font-weight:bold;">
+                    💾 СОХРАНИТЬ ЛОКАЛЬНО
                 </button>
                 <button onclick="showMenu()" style="background:#666; color:white; padding:15px 30px; border:none; border-radius:5px; cursor:pointer;">
                     ◀️ НАЗАД
@@ -261,7 +201,7 @@ window.addQuestion = function() {
     }
     
     questions.push(q);
-    alert('✅ Вопрос добавлен!');
+    saveQuestions();
     showAdmin();
 }
 
@@ -269,40 +209,18 @@ window.addQuestion = function() {
 window.deleteQuestion = function(index) {
     if (confirm('Удалить вопрос?')) {
         questions.splice(index, 1);
+        saveQuestions();
         showAdmin();
-    }
-}
-
-// СОХРАНЕНИЕ В ОБЛАКО
-window.saveToCloud = async function() {
-    try {
-        const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Master-Key': MASTER_KEY
-            },
-            body: JSON.stringify({ questions: questions })
-        });
-        
-        if (response.ok) {
-            alert('✅ Вопросы сохранены в облако!');
-        } else {
-            alert('❌ Ошибка сохранения');
-        }
-    } catch (error) {
-        alert('❌ Ошибка соединения');
     }
 }
 
 // НАЧАЛО ИГРЫ
 window.startGame = function() {
     if (questions.length === 0) {
-        alert('❌ Нет вопросов! Сначала добавьте вопросы в админке.');
+        alert('❌ Нет вопросов!');
         return;
     }
     
-    // Перемешиваем вопросы
     const gameQuestions = [...questions].sort(() => Math.random() - 0.5);
     let currentIndex = 0;
     let score = 0;
