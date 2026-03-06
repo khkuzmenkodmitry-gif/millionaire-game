@@ -1,805 +1,377 @@
 // ==============================================
-// КОНФИГУРАЦИЯ JSONBIN.IO - ПРОВЕРЬТЕ ЭТИ ДАННЫЕ!
+// МАКСИМАЛЬНО ПРОСТАЯ ВЕРСИЯ
 // ==============================================
-const BIN_ID = '69aa7ad5d0ea881f40f44c04'; // Ваш Bin ID
-const API_KEY = '$2a$10$BP88/0Ulf2/XGtkZei0AQuQ6v62DyLwiCUgHXKnzsSJYBkfTSLSUa'; // Ваш API ключ
 
-// Глобальные переменные
+// НАСТРОЙКИ JSONBIN.IO
+const BIN_ID = '69aa7ad5d0ea881f40f44c04';
+const MASTER_KEY = '$2a$10$BP88/0Ulf2/XGtkZei0AQuQ6v62DyLwiCUgHXKnzsSJYBkfTSLSUa';
+
 let questions = [];
-let players = [];
-let results = [];
-let currentPlayer = null;
-let currentQuestions = [];
-let currentQuestionIndex = 0;
-let currentPrizeIndex = -1;
-let gameHistory = [];
 
-// ==============================================
-// ЗАГРУЗКА И СОХРАНЕНИЕ ВОПРОСОВ В ОБЛАКО (JSONBin.io)
-// ==============================================
-
-// Загрузка вопросов из JSONBin.io
+// 1. ЗАГРУЗКА ВОПРОСОВ
 async function loadQuestions() {
     try {
-        // Показываем индикатор загрузки
-        const loadingDiv = document.createElement('div');
-        loadingDiv.id = 'loadingIndicator';
-        loadingDiv.style.cssText = 'position:fixed; top:10px; right:10px; background:#FFD700; color:black; padding:10px; border-radius:5px; z-index:9999;';
-        loadingDiv.textContent = '⏳ Загрузка вопросов из облака...';
-        document.body.appendChild(loadingDiv);
+        console.log('Загружаем вопросы...');
         
-        console.log('Загружаем вопросы из JSONBin.io...');
-        console.log('BIN_ID:', BIN_ID);
-        
-        // Проверяем, что ключи не пустые
-        if (!BIN_ID || BIN_ID === 'ваш_bin_id' || !API_KEY || API_KEY === 'ваш_api_key') {
-            throw new Error('Не настроены ключи JSONBin.io! Замените BIN_ID и API_KEY в начале файла.');
-        }
-        
-        // Загружаем из JSONBin.io
         const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-            method: 'GET',
-            headers: {
-                'X-Master-Key': API_KEY,
-                'X-Bin-Meta': false,
-                'Content-Type': 'application/json'
-            }
+            headers: { 'X-Master-Key': MASTER_KEY }
         });
         
-        if (!response.ok) {
-            throw new Error(`Ошибка HTTP: ${response.status} - ${response.statusText}`);
-        }
+        if (!response.ok) throw new Error('Ошибка загрузки');
         
         const data = await response.json();
-        console.log('Получены данные из JSONBin.io:', data);
+        questions = data.questions || [];
         
-        // Проверяем структуру данных
-        if (data && data.questions && Array.isArray(data.questions)) {
-            questions = data.questions;
-            console.log('✅ Вопросы загружены из облака:', questions.length);
-        } else if (Array.isArray(data)) {
-            // Если пришел просто массив
-            questions = data;
-            console.log('✅ Вопросы загружены из облака (массив):', questions.length);
-        } else {
-            console.log('⚠️ Неожиданная структура данных, использую демо');
-            questions = getDemoQuestions();
-        }
+        console.log('Загружено вопросов:', questions.length);
         
-        // Сохраняем локально как резервную копию
-        localStorage.setItem('millionaireQuestions', JSON.stringify(questions));
-        
-        // Убираем индикатор загрузки
-        const loadingEl = document.getElementById('loadingIndicator');
-        if (loadingEl) loadingEl.remove();
-        
-        // Показываем успешное уведомление
-        showNotification(`✅ Загружено ${questions.length} вопросов`, 'success');
+        // Показываем меню ПОСЛЕ загрузки
+        showMenu();
         
     } catch (error) {
-        console.error('❌ Ошибка загрузки из облака:', error);
-        
-        // Убираем индикатор загрузки
-        const loadingEl = document.getElementById('loadingIndicator');
-        if (loadingEl) loadingEl.remove();
-        
-        // Пробуем загрузить из localStorage
-        const localQuestions = localStorage.getItem('millionaireQuestions');
-        if (localQuestions) {
-            questions = JSON.parse(localQuestions);
-            showNotification('⚠️ Загружены локальные вопросы (облако недоступно)', 'error');
-            console.log('Загружены локальные вопросы:', questions.length);
-        } else {
-            questions = getDemoQuestions();
-            showNotification('⚠️ Используются демо-вопросы', 'error');
-            console.log('Используются демо-вопросы');
-        }
+        console.error('Ошибка:', error);
+        // Если ошибка - показываем демо-вопросы
+        questions = [
+            {
+                question: 'Столица России?',
+                answers: ['Москва', 'Питер', 'Новгород', 'Казань'],
+                correct: 0
+            },
+            {
+                question: 'Сколько планет в Солнечной системе?',
+                answers: ['7', '8', '9', '10'],
+                correct: 1
+            },
+            {
+                question: 'Какой язык программирования используется для веб-страниц?',
+                answers: ['Python', 'Java', 'JavaScript', 'C++'],
+                correct: 2
+            }
+        ];
+        showMenu();
     }
 }
 
-// Сохранение вопросов в JSONBin.io
-async function saveQuestions(showAlert = true) {
+// 2. ПОКАЗ ГЛАВНОГО МЕНЮ
+function showMenu() {
+    console.log('Показываем меню, вопросов:', questions.length);
+    
+    // Полностью перерисовываем страницу
+    document.body.innerHTML = `
+        <div style="
+            text-align: center;
+            padding: 50px 20px;
+            background: linear-gradient(135deg, #0B0C1E, #1A1F3A);
+            min-height: 100vh;
+            color: white;
+            font-family: Arial, sans-serif;
+        ">
+            <h1 style="color: #FFD700; font-size: 48px; margin-bottom: 20px;">
+                💰 КТО ХОЧЕТ СТАТЬ МИЛЛИОНЕРОМ?
+            </h1>
+            
+            <div style="background: rgba(255,215,0,0.1); padding: 20px; border-radius: 10px; margin: 20px auto; max-width: 400px;">
+                <p style="font-size: 18px;">📚 Загружено вопросов: <strong style="color: #FFD700;">${questions.length}</strong></p>
+            </div>
+            
+            <div style="margin: 30px 0;">
+                <button onclick="startGame()" style="
+                    padding: 15px 40px;
+                    font-size: 20px;
+                    background: #00C851;
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    margin: 10px;
+                    cursor: pointer;
+                    font-weight: bold;
+                ">▶️ НАЧАТЬ ИГРУ</button>
+                
+                <button onclick="showAdmin()" style="
+                    padding: 15px 40px;
+                    font-size: 20px;
+                    background: #33b5e5;
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    margin: 10px;
+                    cursor: pointer;
+                    font-weight: bold;
+                ">🔧 АДМИН ПАНЕЛЬ</button>
+            </div>
+            
+            <div style="margin-top: 50px; color: #888; font-size: 14px;">
+                ${questions.length > 0 ? '✅ Готов к игре!' : '⚠️ Добавьте вопросы в админке'}
+            </div>
+        </div>
+    `;
+}
+
+// 3. АДМИН ПАНЕЛЬ
+function showAdmin() {
+    const password = prompt('Введите пароль администратора:');
+    if (password !== '9999') {
+        alert('❌ Неверный пароль!');
+        return;
+    }
+    
+    let adminHtml = `
+        <div style="
+            padding: 30px;
+            background: linear-gradient(135deg, #0B0C1E, #1A1F3A);
+            min-height: 100vh;
+            color: white;
+            font-family: Arial, sans-serif;
+        ">
+            <h2 style="color: #FFD700; text-align: center;">УПРАВЛЕНИЕ ВОПРОСАМИ</h2>
+            
+            <!-- Форма добавления -->
+            <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <h3 style="color: #FFD700;">➕ Добавить новый вопрос</h3>
+                <input id="qText" placeholder="Введите вопрос" style="width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: none;">
+                <input id="a0" placeholder="Ответ А" style="width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: none;">
+                <input id="a1" placeholder="Ответ Б" style="width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: none;">
+                <input id="a2" placeholder="Ответ В" style="width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: none;">
+                <input id="a3" placeholder="Ответ Г" style="width: 100%; padding: 10px; margin: 5px 0; border-radius: 5px; border: none;">
+                
+                <div style="margin: 10px 0;">
+                    <label>Правильный ответ: </label>
+                    <select id="correctSelect" style="padding: 10px; border-radius: 5px;">
+                        <option value="0">А</option>
+                        <option value="1">Б</option>
+                        <option value="2">В</option>
+                        <option value="3">Г</option>
+                    </select>
+                </div>
+                
+                <button onclick="addQuestion()" style="
+                    background: #00C851;
+                    color: white;
+                    padding: 10px 30px;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    font-size: 16px;
+                ">💾 Сохранить вопрос</button>
+            </div>
+            
+            <!-- Список вопросов -->
+            <h3 style="color: #FFD700;">📋 Список вопросов (${questions.length})</h3>
+            <div id="questionsList" style="max-height: 400px; overflow-y: auto;">
+    `;
+    
+    // Добавляем каждый вопрос в список
+    questions.forEach((q, index) => {
+        adminHtml += `
+            <div style="
+                background: rgba(255,255,255,0.05);
+                padding: 15px;
+                margin: 10px 0;
+                border-radius: 5px;
+                border-left: 4px solid #FFD700;
+            ">
+                <p><strong>${index + 1}.</strong> ${q.question}</p>
+                <p style="font-size: 14px; color: #aaa;">
+                    А: ${q.answers[0]} | 
+                    Б: ${q.answers[1]} | 
+                    В: ${q.answers[2]} | 
+                    Г: ${q.answers[3]}
+                </p>
+                <p style="color: #00C851;">✅ Правильный: ${['А','Б','В','Г'][q.correct]}</p>
+                <button onclick="deleteQuestion(${index})" style="
+                    background: #ff4444;
+                    color: white;
+                    border: none;
+                    padding: 5px 15px;
+                    border-radius: 3px;
+                    cursor: pointer;
+                ">🗑️ Удалить</button>
+            </div>
+        `;
+    });
+    
+    adminHtml += `
+            </div>
+            
+            <div style="margin-top: 20px; text-align: center;">
+                <button onclick="saveToCloud()" style="
+                    background: #FFD700;
+                    color: black;
+                    padding: 15px 40px;
+                    border: none;
+                    border-radius: 5px;
+                    margin: 10px;
+                    cursor: pointer;
+                    font-weight: bold;
+                ">💾 СОХРАНИТЬ В ОБЛАКО</button>
+                
+                <button onclick="showMenu()" style="
+                    background: #666;
+                    color: white;
+                    padding: 15px 40px;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                ">◀️ НАЗАД В МЕНЮ</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.innerHTML = adminHtml;
+}
+
+// 4. ДОБАВЛЕНИЕ ВОПРОСА
+window.addQuestion = function() {
+    const question = {
+        question: document.getElementById('qText').value,
+        answers: [
+            document.getElementById('a0').value,
+            document.getElementById('a1').value,
+            document.getElementById('a2').value,
+            document.getElementById('a3').value
+        ],
+        correct: parseInt(document.getElementById('correctSelect').value)
+    };
+    
+    // Проверка на пустые поля
+    if (!question.question || !question.answers[0] || !question.answers[1] || !question.answers[2] || !question.answers[3]) {
+        alert('❌ Заполните все поля!');
+        return;
+    }
+    
+    questions.push(question);
+    alert('✅ Вопрос добавлен локально! Не забудьте сохранить в облако.');
+    showAdmin(); // Обновляем страницу админки
+}
+
+// 5. УДАЛЕНИЕ ВОПРОСА
+window.deleteQuestion = function(index) {
+    if (confirm('Удалить вопрос?')) {
+        questions.splice(index, 1);
+        showAdmin();
+    }
+}
+
+// 6. СОХРАНЕНИЕ В ОБЛАКО
+window.saveToCloud = async function() {
     try {
-        // Сначала сохраняем локально
-        localStorage.setItem('millionaireQuestions', JSON.stringify(questions));
-        
-        // Сохраняем в облако JSONBin.io
         const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Master-Key': API_KEY,
-                'X-Bin-Meta': false
+                'X-Master-Key': MASTER_KEY
             },
             body: JSON.stringify({ questions: questions })
         });
         
-        if (!response.ok) {
-            throw new Error(`Ошибка HTTP: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        console.log('✅ Вопросы сохранены в облако:', result);
-        
-        if (showAlert) {
-            showNotification('✅ Вопросы сохранены в облако!', 'success');
+        if (response.ok) {
+            alert('✅ Вопросы успешно сохранены в облако!');
+        } else {
+            alert('❌ Ошибка сохранения в облако');
         }
     } catch (error) {
-        console.error('❌ Ошибка сохранения в облако:', error);
-        if (showAlert) {
-            showNotification('⚠️ Вопросы сохранены локально (облако недоступно)', 'error');
-        }
+        alert('❌ Ошибка соединения с облаком');
     }
 }
 
-// Демо-вопросы на случай если ничего нет
-function getDemoQuestions() {
-    return [
-        {
-            question: 'Столица России?',
-            answers: ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Казань'],
-            correct: 0
-        },
-        {
-            question: 'Сколько планет в Солнечной системе?',
-            answers: ['7', '8', '9', '10'],
-            correct: 1
-        },
-        {
-            question: 'Какой язык программирования используется для веб-страниц?',
-            answers: ['Python', 'Java', 'JavaScript', 'C++'],
-            correct: 2
-        }
-    ];
-}
-
-// Показать уведомление
-function showNotification(message, type) {
-    // Удаляем предыдущее уведомление если есть
-    const oldNote = document.getElementById('notification');
-    if (oldNote) oldNote.remove();
-    
-    const notification = document.createElement('div');
-    notification.id = 'notification';
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 15px 25px;
-        background: ${type === 'success' ? '#00C851' : '#ff4444'};
-        color: white;
-        border-radius: 5px;
-        font-weight: bold;
-        z-index: 10000;
-        animation: slideIn 0.3s;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    `;
-    notification.textContent = message;
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
-}
-
-// ==============================================
-// УПРАВЛЕНИЕ ЭКРАНАМИ
-// ==============================================
-
-function showScreen(screenName) {
-    // Скрываем все экраны
-    document.getElementById('mainScreen').classList.add('hidden');
-    document.getElementById('gameScreen').classList.add('hidden');
-    document.getElementById('adminPanel').classList.add('hidden');
-    document.getElementById('gameResultScreen').classList.add('hidden');
-    
-    // Показываем главное меню
-    document.getElementById('mainMenu').classList.remove('hidden');
-    document.getElementById('playerLoginScreen').classList.add('hidden');
-    document.getElementById('registerScreen').classList.add('hidden');
-    document.getElementById('playerSelectScreen').classList.add('hidden');
-    document.getElementById('adminLoginScreen').classList.add('hidden');
-    
-    if (screenName === 'main') {
-        document.getElementById('mainMenu').classList.remove('hidden');
-    } else if (screenName === 'playerLogin') {
-        document.getElementById('mainMenu').classList.add('hidden');
-        document.getElementById('playerLoginScreen').classList.remove('hidden');
-    } else if (screenName === 'playerRegister') {
-        document.getElementById('playerLoginScreen').classList.add('hidden');
-        document.getElementById('registerScreen').classList.remove('hidden');
-    } else if (screenName === 'gamePreparation') {
-        if (players.length === 0) {
-            alert('Сначала зарегистрируйте игрока!');
-            showScreen('playerRegister');
-            return;
-        }
-        document.getElementById('mainMenu').classList.add('hidden');
-        document.getElementById('playerSelectScreen').classList.remove('hidden');
-        updatePlayerSelect();
-    } else if (screenName === 'adminLogin') {
-        document.getElementById('mainMenu').classList.add('hidden');
-        document.getElementById('adminLoginScreen').classList.remove('hidden');
-    }
-}
-
-// Обновление списка игроков для выбора
-function updatePlayerSelect() {
-    const select = document.getElementById('playerSelect');
-    if (!select) return;
-    
-    select.innerHTML = '<option value="">-- Выберите игрока --</option>';
-    players.forEach(player => {
-        select.innerHTML += `<option value="${player.id}">${player.name} (Лучший: ${player.bestResult} ₽)</option>`;
-    });
-}
-
-// ==============================================
-// РЕГИСТРАЦИЯ И ВХОД
-// ==============================================
-
-// Регистрация игрока
-function registerPlayer() {
-    const login = document.getElementById('regLogin')?.value.trim();
-    const password = document.getElementById('regPassword')?.value;
-    const name = document.getElementById('regName')?.value.trim();
-    
-    if (!login || !password || !name) {
-        document.getElementById('registerError').textContent = 'Заполните все поля!';
-        return;
-    }
-    
-    if (players.find(p => p.login === login)) {
-        document.getElementById('registerError').textContent = 'Логин уже занят!';
-        return;
-    }
-    
-    const newPlayer = {
-        id: Date.now(),
-        login: login,
-        password: password,
-        name: name,
-        gamesPlayed: 0,
-        bestResult: 0
-    };
-    
-    players.push(newPlayer);
-    localStorage.setItem('millionairePlayers', JSON.stringify(players));
-    
-    alert('Регистрация успешна!');
-    showScreen('playerLogin');
-    
-    // Очищаем форму
-    document.getElementById('regLogin').value = '';
-    document.getElementById('regPassword').value = '';
-    document.getElementById('regName').value = '';
-    document.getElementById('registerError').textContent = '';
-}
-
-// Вход игрока
-function loginPlayer() {
-    const login = document.getElementById('loginUsername')?.value;
-    const password = document.getElementById('loginPassword')?.value;
-    
-    const player = players.find(p => p.login === login && p.password === password);
-    
-    if (player) {
-        currentPlayer = player;
-        document.getElementById('loginError').textContent = '';
-        startGame();
-    } else {
-        document.getElementById('loginError').textContent = 'Неверный логин или пароль!';
-    }
-}
-
-// Выбор игрока из списка
-function selectPlayer() {
-    const select = document.getElementById('playerSelect');
-    if (!select) return;
-    
-    const playerId = parseInt(select.value);
-    
-    if (!playerId) {
-        alert('Выберите игрока!');
-        return;
-    }
-    
-    currentPlayer = players.find(p => p.id === playerId);
-    startGame();
-}
-
-// ==============================================
-// АДМИН ПАНЕЛЬ
-// ==============================================
-
-// Проверка пароля админа
-function checkAdminPassword() {
-    const password = document.getElementById('adminPassword')?.value;
-    
-    if (password === '9999') {
-        document.getElementById('adminError').textContent = '';
-        document.getElementById('mainScreen').classList.add('hidden');
-        document.getElementById('adminPanel').classList.remove('hidden');
-        
-        // Загружаем свежие вопросы при входе в админку
-        loadQuestions().then(() => {
-            updateQuestionsList();
-            updateResultsList();
-            updatePlayersList();
-        });
-    } else {
-        document.getElementById('adminError').textContent = 'Неверный пароль!';
-    }
-}
-
-// Переключение вкладок в админке
-function switchTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    
-    if (event && event.target) {
-        event.target.classList.add('active');
-    }
-    document.getElementById(tab + 'Tab').classList.add('active');
-    
-    if (tab === 'results') updateResultsList();
-    if (tab === 'players') updatePlayersList();
-}
-
-// Обновление списка вопросов
-function updateQuestionsList() {
-    const list = document.getElementById('questionsList');
-    if (!list) return;
-    
+// 7. НАЧАЛО ИГРЫ
+window.startGame = function() {
     if (questions.length === 0) {
-        list.innerHTML = '<p>📭 Вопросов пока нет. Добавьте первый вопрос!</p>';
-        return;
-    }
-    
-    let html = '';
-    questions.forEach((q, index) => {
-        const answers = q.answers.map((a, i) => {
-            const letter = ['А', 'Б', 'В', 'Г'][i];
-            return `${letter}: ${a}${i === q.correct ? ' ✓' : ''}`;
-        }).join('<br>');
-        
-        html += `
-            <div class="question-item" style="margin-bottom: 15px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 5px;">
-                <div style="margin-bottom: 10px;">
-                    <strong>Вопрос ${index + 1}:</strong> ${q.question}
-                </div>
-                <div style="font-size: 14px; color: #aaa; margin-bottom: 10px;">
-                    ${answers}
-                </div>
-                <div>
-                    <button onclick="deleteQuestion(${index})" style="background: #ff4444; padding: 5px 15px; margin-right: 5px;">🗑️ Удалить</button>
-                    <button onclick="testQuestion(${index})" style="background: #33b5e5; padding: 5px 15px;">👁️ Тест</button>
-                </div>
-            </div>
-        `;
-    });
-    list.innerHTML = html;
-}
-
-// Тест вопроса (показать правильный ответ)
-function testQuestion(index) {
-    const q = questions[index];
-    const answers = q.answers.map((a, i) => `${['А', 'Б', 'В', 'Г'][i]}: ${a}`).join('\n');
-    alert(`Правильный ответ: ${['А', 'Б', 'В', 'Г'][q.correct]}\n\n${answers}`);
-}
-
-// Удаление вопроса
-async function deleteQuestion(index) {
-    if (confirm('Удалить вопрос?')) {
-        questions.splice(index, 1);
-        await saveQuestions(true);
-        updateQuestionsList();
-    }
-}
-
-// Сохранение вопроса из формы
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('questionForm');
-    if (form) {
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const questionText = document.getElementById('questionInput')?.value;
-            const answerA = document.getElementById('answerA')?.value;
-            const answerB = document.getElementById('answerB')?.value;
-            const answerC = document.getElementById('answerC')?.value;
-            const answerD = document.getElementById('answerD')?.value;
-            
-            // Получаем выбранный правильный ответ
-            const correctRadio = document.querySelector('input[name="correctAnswer"]:checked');
-            if (!correctRadio) {
-                alert('Выберите правильный ответ!');
-                return;
-            }
-            const correct = parseInt(correctRadio.value);
-            
-            if (!questionText || !answerA || !answerB || !answerC || !answerD) {
-                alert('Заполните все поля!');
-                return;
-            }
-            
-            const newQuestion = {
-                question: questionText,
-                answers: [answerA, answerB, answerC, answerD],
-                correct: correct
-            };
-            
-            questions.push(newQuestion);
-            await saveQuestions(true);
-            
-            // Очищаем форму
-            form.reset();
-            // Сбрасываем радио на первый ответ
-            document.querySelector('input[name="correctAnswer"][value="0"]').checked = true;
-            
-            updateQuestionsList();
-            alert('✅ Вопрос успешно добавлен в облако!');
-        });
-    }
-});
-
-// Обновление списка результатов
-function updateResultsList() {
-    const container = document.getElementById('resultsContainer');
-    if (!container) return;
-    
-    const searchText = document.getElementById('searchResults')?.value?.toLowerCase() || '';
-    
-    let filteredResults = [...results].reverse();
-    if (searchText) {
-        filteredResults = filteredResults.filter(r => 
-            r.playerName?.toLowerCase().includes(searchText)
-        );
-    }
-    
-    if (filteredResults.length === 0) {
-        container.innerHTML = '<p>📊 Нет результатов</p>';
-        return;
-    }
-    
-    let html = '<table class="results-table">';
-    html += '<tr><th>Игрок</th><th>Дата</th><th>Результат</th><th>Правильных ответов</th></tr>';
-    
-    filteredResults.forEach(result => {
-        html += `
-            <tr>
-                <td>${result.playerName || 'Гость'}</td>
-                <td>${new Date(result.date).toLocaleString()}</td>
-                <td style="color: #FFD700;">${result.winAmount || '0 ₽'}</td>
-                <td>${result.correctAnswers || 0}/${result.totalQuestions || '?'}</td>
-            </tr>
-        `;
-    });
-    
-    html += '</table>';
-    container.innerHTML = html;
-}
-
-// Поиск по результатам
-if (document.getElementById('searchResults')) {
-    document.getElementById('searchResults').addEventListener('input', updateResultsList);
-}
-
-// Обновление списка игроков
-function updatePlayersList() {
-    const list = document.getElementById('playersList');
-    if (!list) return;
-    
-    if (players.length === 0) {
-        list.innerHTML = '<p>👤 Нет зарегистрированных игроков</p>';
-        return;
-    }
-    
-    let html = '';
-    players.forEach(player => {
-        html += `
-            <div class="player-card" style="margin-bottom: 10px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 5px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <strong style="color: #FFD700;">${player.name}</strong><br>
-                        Логин: ${player.login}<br>
-                        Игр: ${player.gamesPlayed || 0}<br>
-                        Лучший: ${player.bestResult || 0} ₽
-                    </div>
-                    <div>
-                        <button onclick="resetPlayerStats(${player.id})" style="background: #ffbb33; padding: 5px 10px; margin-right: 5px;">🔄 Сброс</button>
-                        <button onclick="deletePlayer(${player.id})" style="background: #ff4444; padding: 5px 10px;">🗑️ Удалить</button>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    list.innerHTML = html;
-}
-
-// Сброс статистики игрока
-function resetPlayerStats(playerId) {
-    const player = players.find(p => p.id === playerId);
-    if (player) {
-        player.gamesPlayed = 0;
-        player.bestResult = 0;
-        localStorage.setItem('millionairePlayers', JSON.stringify(players));
-        updatePlayersList();
-    }
-}
-
-// Удаление игрока
-function deletePlayer(playerId) {
-    if (confirm('Удалить игрока?')) {
-        players = players.filter(p => p.id !== playerId);
-        results = results.filter(r => r.playerId !== playerId);
-        localStorage.setItem('millionairePlayers', JSON.stringify(players));
-        localStorage.setItem('millionaireResults', JSON.stringify(results));
-        updatePlayersList();
-        updateResultsList();
-    }
-}
-
-// ==============================================
-// ИГРОВАЯ ЛОГИКА
-// ==============================================
-
-// Генерация призовой лестницы
-function generatePrizeLadder(numQuestions) {
-    const basePrizes = [100, 200, 300, 500, 1000, 2000, 4000, 8000, 16000, 32000, 64000, 125000, 250000, 500000, 1000000];
-    const prizes = [];
-    
-    for (let i = 0; i < numQuestions; i++) {
-        if (i < basePrizes.length) {
-            prizes.push(basePrizes[i] + ' ₽');
-        } else {
-            const extraPrize = 1000000 * Math.pow(1.2, i - 14);
-            prizes.push(Math.round(extraPrize / 1000) * 1000 + ' ₽');
-        }
-    }
-    
-    return prizes;
-}
-
-// Начало игры
-async function startGame() {
-    // Убеждаемся, что вопросы загружены
-    if (questions.length === 0) {
-        await loadQuestions();
-    }
-    
-    if (questions.length === 0) {
-        alert('Добавьте хотя бы один вопрос в админ-панели!');
-        showScreen('main');
+        alert('❌ Сначала добавьте вопросы в админке!');
         return;
     }
     
     // Перемешиваем вопросы
-    currentQuestions = shuffleArray([...questions]);
-    currentQuestionIndex = 0;
-    currentPrizeIndex = -1;
-    gameHistory = [];
+    const gameQuestions = [...questions].sort(() => Math.random() - 0.5);
+    let currentIndex = 0;
+    let score = 0;
     
-    // Обновляем счетчики
-    const totalSpan = document.getElementById('totalQuestionsNum');
-    if (totalSpan) totalSpan.textContent = currentQuestions.length;
-    
-    document.getElementById('mainScreen').classList.add('hidden');
-    document.getElementById('gameScreen').classList.remove('hidden');
-    
-    if (currentPlayer) {
-        const nameSpan = document.getElementById('currentPlayerName');
-        const gamesSpan = document.getElementById('playerGames');
-        const bestSpan = document.getElementById('playerBest');
+    function showQuestion() {
+        const q = gameQuestions[currentIndex];
         
-        if (nameSpan) nameSpan.textContent = currentPlayer.name;
-        if (gamesSpan) gamesSpan.textContent = currentPlayer.gamesPlayed;
-        if (bestSpan) bestSpan.textContent = currentPlayer.bestResult;
+        document.body.innerHTML = `
+            <div style="
+                padding: 30px;
+                background: linear-gradient(135deg, #0B0C1E, #1A1F3A);
+                min-height: 100vh;
+                color: white;
+                font-family: Arial, sans-serif;
+            ">
+                <div style="text-align: center; max-width: 800px; margin: 0 auto;">
+                    <div style="background: rgba(255,215,0,0.1); padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+                        Вопрос ${currentIndex + 1} из ${gameQuestions.length}
+                    </div>
+                    
+                    <h2 style="color: #FFD700; margin-bottom: 30px;">${q.question}</h2>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        ${q.answers.map((answer, i) => `
+                            <button onclick="answer(${i})" style="
+                                padding: 20px;
+                                background: #2A3F7A;
+                                color: white;
+                                border: 2px solid #4A5A9A;
+                                border-radius: 10px;
+                                cursor: pointer;
+                                font-size: 16px;
+                                text-align: left;
+                                transition: 0.3s;
+                            ">
+                                <span style="
+                                    background: #FFD700;
+                                    color: black;
+                                    width: 30px;
+                                    height: 30px;
+                                    display: inline-block;
+                                    border-radius: 50%;
+                                    text-align: center;
+                                    line-height: 30px;
+                                    margin-right: 10px;
+                                ">${['А','Б','В','Г'][i]}</span>
+                                ${answer}
+                            </button>
+                        `).join('')}
+                    </div>
+                    
+                    <button onclick="showMenu()" style="
+                        margin-top: 30px;
+                        padding: 10px 30px;
+                        background: #666;
+                        color: white;
+                        border: none;
+                        border-radius: 5px;
+                        cursor: pointer;
+                    ">Выйти в меню</button>
+                </div>
+            </div>
+        `;
     }
     
-    updatePrizeLadder();
+    window.answer = function(selected) {
+        const q = gameQuestions[currentIndex];
+        
+        if (selected === q.correct) {
+            // Правильный ответ
+            const prizes = [100,200,300,500,1000,2000,4000,8000,16000,32000,64000,125000,250000,500000,1000000];
+            score += prizes[currentIndex] || 1000;
+            
+            if (currentIndex + 1 < gameQuestions.length) {
+                currentIndex++;
+                showQuestion();
+            } else {
+                alert(`🎉 ПОБЕДА! Вы выиграли ${score} ₽!`);
+                showMenu();
+            }
+        } else {
+            alert(`❌ Неправильно! Игра окончена. Вы выиграли ${score} ₽`);
+            showMenu();
+        }
+    };
+    
     showQuestion();
 }
 
-// Перемешивание массива
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-}
-
-// Показать вопрос
-function showQuestion() {
-    if (!currentQuestions || currentQuestions.length === 0) return;
-    
-    const question = currentQuestions[currentQuestionIndex];
-    
-    // Обновляем номера вопросов
-    const currentSpan = document.getElementById('currentQuestionNum');
-    const totalSpan = document.getElementById('totalQuestionsNum');
-    
-    if (currentSpan) currentSpan.textContent = currentQuestionIndex + 1;
-    if (totalSpan) totalSpan.textContent = currentQuestions.length;
-    
-    const questionText = document.getElementById('questionText');
-    if (questionText) questionText.textContent = question.question;
-    
-    const container = document.getElementById('answersContainer');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    const letters = ['А', 'Б', 'В', 'Г'];
-    
-    question.answers.forEach((answer, index) => {
-        const btn = document.createElement('button');
-        btn.className = 'answer-btn';
-        btn.innerHTML = `<span class="answer-letter">${letters[index]}</span> ${answer}`;
-        btn.onclick = () => checkAnswer(index);
-        container.appendChild(btn);
-    });
-}
-
-// Проверка ответа
-function checkAnswer(selectedIndex) {
-    const question = currentQuestions[currentQuestionIndex];
-    const buttons = document.querySelectorAll('.answer-btn');
-    
-    gameHistory.push({
-        question: question.question,
-        selected: selectedIndex,
-        correct: question.correct,
-        isCorrect: selectedIndex === question.correct
-    });
-    
-    buttons.forEach(btn => btn.disabled = true);
-    
-    buttons.forEach((btn, index) => {
-        if (index === question.correct) {
-            btn.classList.add('correct');
-        } else if (index === selectedIndex && index !== question.correct) {
-            btn.classList.add('wrong');
-        }
-    });
-    
-    if (selectedIndex === question.correct) {
-        currentPrizeIndex++;
-        updatePrizeLadder();
-        
-        setTimeout(() => {
-            if (currentQuestionIndex === currentQuestions.length - 1) {
-                gameOver(true);
-            } else {
-                currentQuestionIndex++;
-                showQuestion();
-            }
-        }, 1500);
-    } else {
-        setTimeout(() => gameOver(false), 1500);
-    }
-}
-
-// Завершение игры
-function gameOver(isWin) {
-    let winAmount = '0 ₽';
-    let winValue = 0;
-    const correctAnswers = gameHistory.filter(h => h.isCorrect).length;
-    const totalQuestions = currentQuestions.length;
-    
-    if (isWin) {
-        const prizes = generatePrizeLadder(totalQuestions);
-        winAmount = prizes[prizes.length - 1];
-        winValue = parseInt(winAmount.replace(/[^0-9]/g, ''));
-    } else if (currentPrizeIndex >= 0) {
-        const prizes = generatePrizeLadder(totalQuestions);
-        winAmount = prizes[currentPrizeIndex];
-        winValue = parseInt(winAmount.replace(/[^0-9]/g, ''));
-    }
-    
-    // Сохраняем результат
-    results.push({
-        id: Date.now(),
-        playerId: currentPlayer?.id || 0,
-        playerName: currentPlayer?.name || 'Гость',
-        date: new Date().toISOString(),
-        winAmount: winAmount,
-        winValue: winValue,
-        correctAnswers: correctAnswers,
-        totalQuestions: totalQuestions
-    });
-    localStorage.setItem('millionaireResults', JSON.stringify(results));
-    
-    if (currentPlayer) {
-        currentPlayer.gamesPlayed = (currentPlayer.gamesPlayed || 0) + 1;
-        if (winValue > (currentPlayer.bestResult || 0)) {
-            currentPlayer.bestResult = winValue;
-        }
-        localStorage.setItem('millionairePlayers', JSON.stringify(players));
-    }
-    
-    // Показываем результат
-    document.getElementById('gameScreen').classList.add('hidden');
-    document.getElementById('gameResultScreen').classList.remove('hidden');
-    
-    const winSpan = document.getElementById('finalWinAmount');
-    const statsSpan = document.getElementById('finalStats');
-    
-    if (winSpan) winSpan.textContent = winAmount;
-    if (statsSpan) statsSpan.textContent = `Правильных ответов: ${correctAnswers} из ${totalQuestions}`;
-}
-
-// Обновление призовой лестницы
-function updatePrizeLadder() {
-    if (!currentQuestions || currentQuestions.length === 0) return;
-    
-    const prizes = generatePrizeLadder(currentQuestions.length);
-    const ladder = document.getElementById('prizeLadder');
-    if (!ladder) return;
-    
-    ladder.innerHTML = '<h3>💰 Призы:</h3>';
-    
-    for (let i = prizes.length - 1; i >= 0; i--) {
-        const item = document.createElement('div');
-        item.className = 'prize-item';
-        
-        if (i === currentPrizeIndex + 1) {
-            item.classList.add('current');
-        } else if (i <= currentPrizeIndex) {
-            item.classList.add('reached');
-        }
-        
-        item.textContent = prizes[i];
-        ladder.appendChild(item);
-    }
-}
-
-// Возврат в меню
-function backToMenu() {
-    currentPlayer = null;
-    document.getElementById('mainScreen').classList.remove('hidden');
-    document.getElementById('gameScreen').classList.add('hidden');
-    document.getElementById('adminPanel').classList.add('hidden');
-    document.getElementById('gameResultScreen').classList.add('hidden');
-    showScreen('main');
-}
-
-// ==============================================
-// ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ
-// ==============================================
-
-window.onload = async function() {
-    console.log('🚀 Игра загружается...');
-    
-    // Добавляем стили для анимаций
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes slideOut {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(100%); opacity: 0; }
-        }
-    `;
-    document.head.appendChild(style);
-    
-    // Загружаем вопросы из облака JSONBin.io
-    await loadQuestions();
-    
-    // Загружаем игроков и результаты из localStorage
-    const savedPlayers = localStorage.getItem('millionairePlayers');
-    const savedResults = localStorage.getItem('millionaireResults');
-    
-    players = savedPlayers ? JSON.parse(savedPlayers) : [];
-    results = savedResults ? JSON.parse(savedResults) : [];
-    
-    console.log('📊 Игроков:', players.length);
-    console.log('📈 Результатов:', results.length);
-    
-    showScreen('main');
+// 8. ЗАПУСК ПРИ ЗАГРУЗКЕ
+window.onload = function() {
+    console.log('Страница загружена, начинаем загрузку вопросов...');
+    loadQuestions();
 };
-
