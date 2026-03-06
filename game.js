@@ -2,7 +2,7 @@
 // КОНФИГУРАЦИЯ JSONBIN.IO - ПРОВЕРЬТЕ ЭТИ ДАННЫЕ!
 // ==============================================
 const BIN_ID = '69aa7ad5d0ea881f40f44c04'; // Ваш Bin ID
-const API_KEY = '$2a$10$Lrd9qr2zVXIhC0chIlbqi.pLXyeZrKVYEiNBkRIFb1pyweXfKz2cS'; // Ваш API ключ
+const API_KEY = '$2a$10$BP88/0Ulf2/XGtkZei0AQuQ6v62DyLwiCUgHXKnzsSJYBkfTSLSUa'; // Ваш API ключ
 
 // Глобальные переменные
 let questions = [];
@@ -802,3 +802,4 @@ window.onload = async function() {
     
     showScreen('main');
 };
+
