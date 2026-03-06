@@ -1028,9 +1028,6 @@ function showGameScreen() {
     showQuestion();
 }
     
-    showQuestion();
-}
-
 // Показать вопрос
 function showQuestion() {
     const q = currentQuestions[currentQuestionIndex];
@@ -1194,4 +1191,5 @@ window.onload = function() {
     loadData();
     showMainScreen();
 };
+
 
