@@ -1,72 +1,165 @@
-// Данные
+// ==============================================
+// КОНФИГУРАЦИЯ JSONBIN.IO - ЗАМЕНИТЕ НА СВОИ ДАННЫЕ!
+// ==============================================
+const BIN_ID = '69aa7ad5d0ea881f40f44c04'; // Ваш Bin ID (я взял из вашего сообщения)
+const API_KEY = '$2a$10$Lrd9qr2zVXIhC0chIlbqi.pLXyeZrKVYEiNBkRIFb1pyweXfKz2cS'; // Ваш API ключ
+
+// Глобальные переменные
 let questions = [];
 let players = [];
 let results = [];
-
-// Текущее состояние
 let currentPlayer = null;
 let currentQuestions = [];
 let currentQuestionIndex = 0;
 let currentPrizeIndex = -1;
 let gameHistory = [];
 
-// Призовая лестница
-const prizeLadder = [
-    '100 ₽', '200 ₽', '300 ₽', '500 ₽', '1 000 ₽',
-    '2 000 ₽', '4 000 ₽', '8 000 ₽', '16 000 ₽', '32 000 ₽',
-    '64 000 ₽', '125 000 ₽', '250 000 ₽', '500 000 ₽', '1 000 000 ₽'
-];
+// ==============================================
+// ЗАГРУЗКА И СОХРАНЕНИЕ ВОПРОСОВ В ОБЛАКО
+// ==============================================
 
-// Загрузка данных при старте
-function loadData() {
-    const savedQuestions = localStorage.getItem('millionaireQuestions');
-    const savedPlayers = localStorage.getItem('millionairePlayers');
-    const savedResults = localStorage.getItem('millionaireResults');
-    
-    questions = savedQuestions ? JSON.parse(savedQuestions) : [];
-    players = savedPlayers ? JSON.parse(savedPlayers) : [];
-    results = savedResults ? JSON.parse(savedResults) : [];
-    
-    // Добавляем демо-вопросы если нет ни одного
-    if (questions.length === 0) {
-        questions = [
-            {
-                question: 'Столица России?',
-                answers: ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Казань'],
-                correct: 0
-            },
-            {
-                question: 'Сколько планет в Солнечной системе?',
-                answers: ['7', '8', '9', '10'],
-                correct: 1
-            },
-            {
-                question: 'Какой язык программирования используется для веб-страниц?',
-                answers: ['Python', 'Java', 'JavaScript', 'C++'],
-                correct: 2
+// Загрузка вопросов из JSONBin.io
+async function loadQuestions() {
+    try {
+        // Показываем индикатор загрузки
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = 'loadingIndicator';
+        loadingDiv.style.cssText = 'position:fixed; top:10px; right:10px; background:#FFD700; color:black; padding:10px; border-radius:5px; z-index:9999;';
+        loadingDiv.textContent = '⏳ Загрузка вопросов...';
+        document.body.appendChild(loadingDiv);
+        
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+            headers: {
+                'X-Master-Key': API_KEY,
+                'X-Bin-Meta': false
             }
-        ];
-        saveQuestions();
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Ошибка HTTP: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Проверяем структуру данных
+        if (data && data.questions && Array.isArray(data.questions)) {
+            questions = data.questions;
+            console.log('✅ Вопросы загружены из облака:', questions.length);
+        } else if (Array.isArray(data)) {
+            // Если пришел просто массив
+            questions = data;
+            console.log('✅ Вопросы загружены из облака (массив):', questions.length);
+        } else {
+            console.log('⚠️ Неожиданная структура данных, использую демо');
+            questions = getDemoQuestions();
+        }
+        
+        // Сохраняем локально как резервную копию
+        localStorage.setItem('millionaireQuestions', JSON.stringify(questions));
+        
+    } catch (error) {
+        console.error('❌ Ошибка загрузки из облака:', error);
+        
+        // Пробуем загрузить из localStorage
+        const localQuestions = localStorage.getItem('millionaireQuestions');
+        if (localQuestions) {
+            questions = JSON.parse(localQuestions);
+            alert('⚠️ Не удалось загрузить из облака. Используются локальные вопросы.');
+        } else {
+            questions = getDemoQuestions();
+            alert('⚠️ Не удалось загрузить вопросы. Используются демо-вопросы.');
+        }
+    } finally {
+        // Убираем индикатор загрузки
+        const loadingDiv = document.getElementById('loadingIndicator');
+        if (loadingDiv) loadingDiv.remove();
     }
 }
 
-// Сохранение данных
-function saveQuestions() {
-    localStorage.setItem('millionaireQuestions', JSON.stringify(questions));
+// Сохранение вопросов в JSONBin.io
+async function saveQuestions(showAlert = true) {
+    try {
+        // Сначала сохраняем локально
+        localStorage.setItem('millionaireQuestions', JSON.stringify(questions));
+        
+        // Сохраняем в облако
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': API_KEY
+            },
+            body: JSON.stringify({ questions: questions })
+        });
+        
+        if (response.ok) {
+            console.log('✅ Вопросы сохранены в облако');
+            if (showAlert) {
+                showNotification('✅ Вопросы сохранены в облако!', 'success');
+            }
+        } else {
+            throw new Error(`Ошибка HTTP: ${response.status}`);
+        }
+    } catch (error) {
+        console.error('❌ Ошибка сохранения в облако:', error);
+        if (showAlert) {
+            showNotification('⚠️ Вопросы сохранены локально, но не в облако!', 'error');
+        }
+    }
 }
 
-function savePlayers() {
-    localStorage.setItem('millionairePlayers', JSON.stringify(players));
+// Демо-вопросы на случай если ничего нет
+function getDemoQuestions() {
+    return [
+        {
+            question: 'Столица России?',
+            answers: ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Казань'],
+            correct: 0
+        },
+        {
+            question: 'Сколько планет в Солнечной системе?',
+            answers: ['7', '8', '9', '10'],
+            correct: 1
+        },
+        {
+            question: 'Какой язык программирования используется для веб-страниц?',
+            answers: ['Python', 'Java', 'JavaScript', 'C++'],
+            correct: 2
+        }
+    ];
 }
 
-function saveResults() {
-    localStorage.setItem('millionaireResults', JSON.stringify(results));
+// Показать уведомление
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 25px;
+        background: ${type === 'success' ? '#00C851' : '#ff4444'};
+        color: white;
+        border-radius: 5px;
+        font-weight: bold;
+        z-index: 10000;
+        animation: slideIn 0.5s;
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.5s';
+        setTimeout(() => notification.remove(), 500);
+    }, 3000);
 }
 
-// Управление экранами
+// ==============================================
+// УПРАВЛЕНИЕ ЭКРАНАМИ
+// ==============================================
+
 function showScreen(screenName) {
     // Скрываем все экраны
-    document.getElementById('mainScreen').classList.remove('hidden');
+    document.getElementById('mainScreen').classList.add('hidden');
     document.getElementById('gameScreen').classList.add('hidden');
     document.getElementById('adminPanel').classList.add('hidden');
     document.getElementById('gameResultScreen').classList.add('hidden');
@@ -104,17 +197,23 @@ function showScreen(screenName) {
 // Обновление списка игроков для выбора
 function updatePlayerSelect() {
     const select = document.getElementById('playerSelect');
+    if (!select) return;
+    
     select.innerHTML = '<option value="">-- Выберите игрока --</option>';
     players.forEach(player => {
         select.innerHTML += `<option value="${player.id}">${player.name} (Лучший: ${player.bestResult} ₽)</option>`;
     });
 }
 
+// ==============================================
+// РЕГИСТРАЦИЯ И ВХОД
+// ==============================================
+
 // Регистрация игрока
 function registerPlayer() {
-    const login = document.getElementById('regLogin').value.trim();
-    const password = document.getElementById('regPassword').value;
-    const name = document.getElementById('regName').value.trim();
+    const login = document.getElementById('regLogin')?.value.trim();
+    const password = document.getElementById('regPassword')?.value;
+    const name = document.getElementById('regName')?.value.trim();
     
     if (!login || !password || !name) {
         document.getElementById('registerError').textContent = 'Заполните все поля!';
@@ -136,7 +235,7 @@ function registerPlayer() {
     };
     
     players.push(newPlayer);
-    savePlayers();
+    localStorage.setItem('millionairePlayers', JSON.stringify(players));
     
     alert('Регистрация успешна!');
     showScreen('playerLogin');
@@ -150,8 +249,8 @@ function registerPlayer() {
 
 // Вход игрока
 function loginPlayer() {
-    const login = document.getElementById('loginUsername').value;
-    const password = document.getElementById('loginPassword').value;
+    const login = document.getElementById('loginUsername')?.value;
+    const password = document.getElementById('loginPassword')?.value;
     
     const player = players.find(p => p.login === login && p.password === password);
     
@@ -167,6 +266,8 @@ function loginPlayer() {
 // Выбор игрока из списка
 function selectPlayer() {
     const select = document.getElementById('playerSelect');
+    if (!select) return;
+    
     const playerId = parseInt(select.value);
     
     if (!playerId) {
@@ -178,17 +279,25 @@ function selectPlayer() {
     startGame();
 }
 
+// ==============================================
+// АДМИН ПАНЕЛЬ
+// ==============================================
+
 // Проверка пароля админа
 function checkAdminPassword() {
-    const password = document.getElementById('adminPassword').value;
+    const password = document.getElementById('adminPassword')?.value;
     
     if (password === '9999') {
         document.getElementById('adminError').textContent = '';
         document.getElementById('mainScreen').classList.add('hidden');
         document.getElementById('adminPanel').classList.remove('hidden');
-        updateQuestionsList();
-        updateResultsList();
-        updatePlayersList();
+        
+        // Загружаем свежие вопросы при входе в админку
+        loadQuestions().then(() => {
+            updateQuestionsList();
+            updateResultsList();
+            updatePlayersList();
+        });
     } else {
         document.getElementById('adminError').textContent = 'Неверный пароль!';
     }
@@ -199,51 +308,128 @@ function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     
-    event.target.classList.add('active');
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
     document.getElementById(tab + 'Tab').classList.add('active');
+    
+    if (tab === 'results') updateResultsList();
+    if (tab === 'players') updatePlayersList();
 }
 
-// Обновление списка вопросов в админке
+// Обновление списка вопросов
 function updateQuestionsList() {
     const list = document.getElementById('questionsList');
-    list.innerHTML = '';
+    if (!list) return;
     
+    if (questions.length === 0) {
+        list.innerHTML = '<p>📭 Вопросов пока нет. Добавьте первый вопрос!</p>';
+        return;
+    }
+    
+    let html = '';
     questions.forEach((q, index) => {
-        const div = document.createElement('div');
-        div.className = 'question-item';
-        div.innerHTML = `
-            <div>
-                <strong>Вопрос ${index + 1}:</strong> ${q.question}
+        const answers = q.answers.map((a, i) => {
+            const letter = ['А', 'Б', 'В', 'Г'][i];
+            return `${letter}: ${a}${i === q.correct ? ' ✓' : ''}`;
+        }).join('<br>');
+        
+        html += `
+            <div class="question-item" style="margin-bottom: 15px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                <div style="margin-bottom: 10px;">
+                    <strong>Вопрос ${index + 1}:</strong> ${q.question}
+                </div>
+                <div style="font-size: 14px; color: #aaa; margin-bottom: 10px;">
+                    ${answers}
+                </div>
+                <div>
+                    <button onclick="deleteQuestion(${index})" style="background: #ff4444; padding: 5px 15px; margin-right: 5px;">🗑️ Удалить</button>
+                    <button onclick="testQuestion(${index})" style="background: #33b5e5; padding: 5px 15px;">👁️ Тест</button>
+                </div>
             </div>
-            <button class="delete-btn" onclick="deleteQuestion(${index})">Удалить</button>
         `;
-        list.appendChild(div);
     });
+    list.innerHTML = html;
+}
+
+// Тест вопроса (показать правильный ответ)
+function testQuestion(index) {
+    const q = questions[index];
+    const answers = q.answers.map((a, i) => `${['А', 'Б', 'В', 'Г'][i]}: ${a}`).join('\n');
+    alert(`Правильный ответ: ${['А', 'Б', 'В', 'Г'][q.correct]}\n\n${answers}`);
 }
 
 // Удаление вопроса
-function deleteQuestion(index) {
+async function deleteQuestion(index) {
     if (confirm('Удалить вопрос?')) {
         questions.splice(index, 1);
-        saveQuestions();
+        await saveQuestions(true);
         updateQuestionsList();
     }
 }
 
+// Сохранение вопроса из формы
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('questionForm');
+    if (form) {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const questionText = document.getElementById('questionInput')?.value;
+            const answerA = document.getElementById('answerA')?.value;
+            const answerB = document.getElementById('answerB')?.value;
+            const answerC = document.getElementById('answerC')?.value;
+            const answerD = document.getElementById('answerD')?.value;
+            
+            // Получаем выбранный правильный ответ
+            const correctRadio = document.querySelector('input[name="correctAnswer"]:checked');
+            if (!correctRadio) {
+                alert('Выберите правильный ответ!');
+                return;
+            }
+            const correct = parseInt(correctRadio.value);
+            
+            if (!questionText || !answerA || !answerB || !answerC || !answerD) {
+                alert('Заполните все поля!');
+                return;
+            }
+            
+            const newQuestion = {
+                question: questionText,
+                answers: [answerA, answerB, answerC, answerD],
+                correct: correct
+            };
+            
+            questions.push(newQuestion);
+            await saveQuestions(true);
+            
+            // Очищаем форму
+            form.reset();
+            // Сбрасываем радио на первый ответ
+            document.querySelector('input[name="correctAnswer"][value="0"]').checked = true;
+            
+            updateQuestionsList();
+            alert('✅ Вопрос успешно добавлен в облако!');
+        });
+    }
+});
+
 // Обновление списка результатов
 function updateResultsList() {
     const container = document.getElementById('resultsContainer');
-    const searchText = document.getElementById('searchResults')?.value.toLowerCase() || '';
+    if (!container) return;
+    
+    const searchText = document.getElementById('searchResults')?.value?.toLowerCase() || '';
     
     let filteredResults = [...results].reverse();
     if (searchText) {
         filteredResults = filteredResults.filter(r => 
-            r.playerName.toLowerCase().includes(searchText)
+            r.playerName?.toLowerCase().includes(searchText)
         );
     }
     
     if (filteredResults.length === 0) {
-        container.innerHTML = '<p>Нет результатов</p>';
+        container.innerHTML = '<p>📊 Нет результатов</p>';
         return;
     }
     
@@ -253,10 +439,10 @@ function updateResultsList() {
     filteredResults.forEach(result => {
         html += `
             <tr>
-                <td>${result.playerName}</td>
+                <td>${result.playerName || 'Гость'}</td>
                 <td>${new Date(result.date).toLocaleString()}</td>
-                <td style="color: #FFD700;">${result.winAmount}</td>
-                <td>${result.correctAnswers}/15</td>
+                <td style="color: #FFD700;">${result.winAmount || '0 ₽'}</td>
+                <td>${result.correctAnswers || 0}/${result.totalQuestions || '?'}</td>
             </tr>
         `;
     });
@@ -266,30 +452,40 @@ function updateResultsList() {
 }
 
 // Поиск по результатам
-document.getElementById('searchResults')?.addEventListener('input', updateResultsList);
+if (document.getElementById('searchResults')) {
+    document.getElementById('searchResults').addEventListener('input', updateResultsList);
+}
 
 // Обновление списка игроков
 function updatePlayersList() {
     const list = document.getElementById('playersList');
-    list.innerHTML = '';
+    if (!list) return;
     
+    if (players.length === 0) {
+        list.innerHTML = '<p>👤 Нет зарегистрированных игроков</p>';
+        return;
+    }
+    
+    let html = '';
     players.forEach(player => {
-        const div = document.createElement('div');
-        div.className = 'player-card';
-        div.innerHTML = `
-            <div>
-                <strong>${player.name}</strong><br>
-                Логин: ${player.login}<br>
-                Игр: ${player.gamesPlayed}<br>
-                Лучший: ${player.bestResult} ₽
-            </div>
-            <div class="player-actions">
-                <button onclick="resetPlayerStats(${player.id})" style="background: #ffbb33;">Сброс</button>
-                <button onclick="deletePlayer(${player.id})" style="background: #ff4444;">Удалить</button>
+        html += `
+            <div class="player-card" style="margin-bottom: 10px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="color: #FFD700;">${player.name}</strong><br>
+                        Логин: ${player.login}<br>
+                        Игр: ${player.gamesPlayed || 0}<br>
+                        Лучший: ${player.bestResult || 0} ₽
+                    </div>
+                    <div>
+                        <button onclick="resetPlayerStats(${player.id})" style="background: #ffbb33; padding: 5px 10px; margin-right: 5px;">🔄 Сброс</button>
+                        <button onclick="deletePlayer(${player.id})" style="background: #ff4444; padding: 5px 10px;">🗑️ Удалить</button>
+                    </div>
+                </div>
             </div>
         `;
-        list.appendChild(div);
     });
+    list.innerHTML = html;
 }
 
 // Сброс статистики игрока
@@ -298,7 +494,7 @@ function resetPlayerStats(playerId) {
     if (player) {
         player.gamesPlayed = 0;
         player.bestResult = 0;
-        savePlayers();
+        localStorage.setItem('millionairePlayers', JSON.stringify(players));
         updatePlayersList();
     }
 }
@@ -308,58 +504,69 @@ function deletePlayer(playerId) {
     if (confirm('Удалить игрока?')) {
         players = players.filter(p => p.id !== playerId);
         results = results.filter(r => r.playerId !== playerId);
-        savePlayers();
-        saveResults();
+        localStorage.setItem('millionairePlayers', JSON.stringify(players));
+        localStorage.setItem('millionaireResults', JSON.stringify(results));
         updatePlayersList();
         updateResultsList();
     }
 }
 
-// Сохранение вопроса
-document.getElementById('questionForm')?.addEventListener('submit', function(e) {
-    e.preventDefault();
+// ==============================================
+// ИГРОВАЯ ЛОГИКА
+// ==============================================
+
+// Генерация призовой лестницы
+function generatePrizeLadder(numQuestions) {
+    const basePrizes = [100, 200, 300, 500, 1000, 2000, 4000, 8000, 16000, 32000, 64000, 125000, 250000, 500000, 1000000];
+    const prizes = [];
     
-    const question = document.getElementById('questionInput').value;
-    const answerA = document.getElementById('answerA').value;
-    const answerB = document.getElementById('answerB').value;
-    const answerC = document.getElementById('answerC').value;
-    const answerD = document.getElementById('answerD').value;
-    const correct = document.querySelector('input[name="correctAnswer"]:checked').value;
+    for (let i = 0; i < numQuestions; i++) {
+        if (i < basePrizes.length) {
+            prizes.push(basePrizes[i] + ' ₽');
+        } else {
+            const extraPrize = 1000000 * Math.pow(1.2, i - 14);
+            prizes.push(Math.round(extraPrize / 1000) * 1000 + ' ₽');
+        }
+    }
     
-    questions.push({
-        question: question,
-        answers: [answerA, answerB, answerC, answerD],
-        correct: parseInt(correct)
-    });
-    
-    saveQuestions();
-    updateQuestionsList();
-    
-    // Очищаем форму
-    this.reset();
-    alert('Вопрос добавлен!');
-});
+    return prizes;
+}
 
 // Начало игры
-function startGame() {
-    if (questions.length < 15) {
-        alert('Нужно минимум 15 вопросов! Сейчас: ' + questions.length);
+async function startGame() {
+    // Убеждаемся, что вопросы загружены
+    if (questions.length === 0) {
+        await loadQuestions();
+    }
+    
+    if (questions.length === 0) {
+        alert('Добавьте хотя бы один вопрос в админ-панели!');
         showScreen('main');
         return;
     }
     
-    // Перемешиваем и берем 15 вопросов
-    currentQuestions = shuffleArray([...questions]).slice(0, 15);
+    // Перемешиваем вопросы
+    currentQuestions = shuffleArray([...questions]);
     currentQuestionIndex = 0;
     currentPrizeIndex = -1;
     gameHistory = [];
     
+    // Обновляем счетчики
+    const totalSpan = document.getElementById('totalQuestionsNum');
+    if (totalSpan) totalSpan.textContent = currentQuestions.length;
+    
     document.getElementById('mainScreen').classList.add('hidden');
     document.getElementById('gameScreen').classList.remove('hidden');
     
-    document.getElementById('currentPlayerName').textContent = currentPlayer.name;
-    document.getElementById('playerGames').textContent = currentPlayer.gamesPlayed;
-    document.getElementById('playerBest').textContent = currentPlayer.bestResult;
+    if (currentPlayer) {
+        const nameSpan = document.getElementById('currentPlayerName');
+        const gamesSpan = document.getElementById('playerGames');
+        const bestSpan = document.getElementById('playerBest');
+        
+        if (nameSpan) nameSpan.textContent = currentPlayer.name;
+        if (gamesSpan) gamesSpan.textContent = currentPlayer.gamesPlayed;
+        if (bestSpan) bestSpan.textContent = currentPlayer.bestResult;
+    }
     
     updatePrizeLadder();
     showQuestion();
@@ -376,11 +583,23 @@ function shuffleArray(array) {
 
 // Показать вопрос
 function showQuestion() {
+    if (!currentQuestions || currentQuestions.length === 0) return;
+    
     const question = currentQuestions[currentQuestionIndex];
-    document.getElementById('questionNumber').textContent = `Вопрос ${currentQuestionIndex + 1} из 15`;
-    document.getElementById('questionText').textContent = question.question;
+    
+    // Обновляем номера вопросов
+    const currentSpan = document.getElementById('currentQuestionNum');
+    const totalSpan = document.getElementById('totalQuestionsNum');
+    
+    if (currentSpan) currentSpan.textContent = currentQuestionIndex + 1;
+    if (totalSpan) totalSpan.textContent = currentQuestions.length;
+    
+    const questionText = document.getElementById('questionText');
+    if (questionText) questionText.textContent = question.question;
     
     const container = document.getElementById('answersContainer');
+    if (!container) return;
+    
     container.innerHTML = '';
     
     const letters = ['А', 'Б', 'В', 'Г'];
@@ -399,7 +618,6 @@ function checkAnswer(selectedIndex) {
     const question = currentQuestions[currentQuestionIndex];
     const buttons = document.querySelectorAll('.answer-btn');
     
-    // Записываем в историю
     gameHistory.push({
         question: question.question,
         selected: selectedIndex,
@@ -407,10 +625,8 @@ function checkAnswer(selectedIndex) {
         isCorrect: selectedIndex === question.correct
     });
     
-    // Блокируем кнопки
     buttons.forEach(btn => btn.disabled = true);
     
-    // Подсвечиваем ответы
     buttons.forEach((btn, index) => {
         if (index === question.correct) {
             btn.classList.add('correct');
@@ -419,13 +635,12 @@ function checkAnswer(selectedIndex) {
         }
     });
     
-    // Проверяем правильность
     if (selectedIndex === question.correct) {
         currentPrizeIndex++;
         updatePrizeLadder();
         
         setTimeout(() => {
-            if (currentQuestionIndex === 14) {
+            if (currentQuestionIndex === currentQuestions.length - 1) {
                 gameOver(true);
             } else {
                 currentQuestionIndex++;
@@ -442,55 +657,61 @@ function gameOver(isWin) {
     let winAmount = '0 ₽';
     let winValue = 0;
     const correctAnswers = gameHistory.filter(h => h.isCorrect).length;
+    const totalQuestions = currentQuestions.length;
     
     if (isWin) {
-        winAmount = '1 000 000 ₽';
-        winValue = 1000000;
+        const prizes = generatePrizeLadder(totalQuestions);
+        winAmount = prizes[prizes.length - 1];
+        winValue = parseInt(winAmount.replace(/[^0-9]/g, ''));
     } else if (currentPrizeIndex >= 0) {
-        if (currentPrizeIndex >= 9) {
-            winAmount = '32 000 ₽';
-            winValue = 32000;
-        } else if (currentPrizeIndex >= 4) {
-            winAmount = '1 000 ₽';
-            winValue = 1000;
-        } else if (currentPrizeIndex >= 0) {
-            winAmount = '100 ₽';
-            winValue = 100;
-        }
+        const prizes = generatePrizeLadder(totalQuestions);
+        winAmount = prizes[currentPrizeIndex];
+        winValue = parseInt(winAmount.replace(/[^0-9]/g, ''));
     }
     
     // Сохраняем результат
     results.push({
         id: Date.now(),
-        playerId: currentPlayer.id,
-        playerName: currentPlayer.name,
+        playerId: currentPlayer?.id || 0,
+        playerName: currentPlayer?.name || 'Гость',
         date: new Date().toISOString(),
         winAmount: winAmount,
         winValue: winValue,
-        correctAnswers: correctAnswers
+        correctAnswers: correctAnswers,
+        totalQuestions: totalQuestions
     });
-    saveResults();
+    localStorage.setItem('millionaireResults', JSON.stringify(results));
     
-    // Обновляем статистику игрока
-    currentPlayer.gamesPlayed++;
-    if (winValue > currentPlayer.bestResult) {
-        currentPlayer.bestResult = winValue;
+    if (currentPlayer) {
+        currentPlayer.gamesPlayed = (currentPlayer.gamesPlayed || 0) + 1;
+        if (winValue > (currentPlayer.bestResult || 0)) {
+            currentPlayer.bestResult = winValue;
+        }
+        localStorage.setItem('millionairePlayers', JSON.stringify(players));
     }
-    savePlayers();
     
     // Показываем результат
     document.getElementById('gameScreen').classList.add('hidden');
     document.getElementById('gameResultScreen').classList.remove('hidden');
-    document.getElementById('finalWinAmount').textContent = winAmount;
-    document.getElementById('finalStats').textContent = `Правильных ответов: ${correctAnswers} из 15`;
+    
+    const winSpan = document.getElementById('finalWinAmount');
+    const statsSpan = document.getElementById('finalStats');
+    
+    if (winSpan) winSpan.textContent = winAmount;
+    if (statsSpan) statsSpan.textContent = `Правильных ответов: ${correctAnswers} из ${totalQuestions}`;
 }
 
 // Обновление призовой лестницы
 function updatePrizeLadder() {
-    const ladder = document.getElementById('prizeLadder');
-    ladder.innerHTML = '<h3>Призы:</h3>';
+    if (!currentQuestions || currentQuestions.length === 0) return;
     
-    for (let i = prizeLadder.length - 1; i >= 0; i--) {
+    const prizes = generatePrizeLadder(currentQuestions.length);
+    const ladder = document.getElementById('prizeLadder');
+    if (!ladder) return;
+    
+    ladder.innerHTML = '<h3>💰 Призы:</h3>';
+    
+    for (let i = prizes.length - 1; i >= 0; i--) {
         const item = document.createElement('div');
         item.className = 'prize-item';
         
@@ -500,7 +721,7 @@ function updatePrizeLadder() {
             item.classList.add('reached');
         }
         
-        item.textContent = prizeLadder[i];
+        item.textContent = prizes[i];
         ladder.appendChild(item);
     }
 }
@@ -515,8 +736,39 @@ function backToMenu() {
     showScreen('main');
 }
 
-// Инициализация при загрузке
-window.onload = function() {
-    loadData();
+// ==============================================
+// ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ
+// ==============================================
+
+window.onload = async function() {
+    console.log('🚀 Игра загружается...');
+    
+    // Добавляем стили для анимаций
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Загружаем вопросы из облака
+    await loadQuestions();
+    
+    // Загружаем игроков и результаты из localStorage
+    const savedPlayers = localStorage.getItem('millionairePlayers');
+    const savedResults = localStorage.getItem('millionaireResults');
+    
+    players = savedPlayers ? JSON.parse(savedPlayers) : [];
+    results = savedResults ? JSON.parse(savedResults) : [];
+    
+    console.log('📊 Игроков:', players.length);
+    console.log('📈 Результатов:', results.length);
+    
     showScreen('main');
 };
